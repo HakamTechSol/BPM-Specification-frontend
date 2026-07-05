@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PitchIdRouteImport } from './routes/pitch.$id'
+import { Route as GuestIdRouteImport } from './routes/guest.$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -34,17 +35,24 @@ const PitchIdRoute = PitchIdRouteImport.update({
   path: '/pitch/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GuestIdRoute = GuestIdRouteImport.update({
+  id: '/guest/$id',
+  path: '/guest/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/guest/$id': typeof GuestIdRoute
   '/pitch/$id': typeof PitchIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/guest/$id': typeof GuestIdRoute
   '/pitch/$id': typeof PitchIdRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/guest/$id': typeof GuestIdRoute
   '/pitch/$id': typeof PitchIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/login' | '/pitch/$id'
+  fullPaths: '/' | '/dashboard' | '/login' | '/guest/$id' | '/pitch/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login' | '/pitch/$id'
-  id: '__root__' | '/' | '/dashboard' | '/login' | '/pitch/$id'
+  to: '/' | '/dashboard' | '/login' | '/guest/$id' | '/pitch/$id'
+  id: '__root__' | '/' | '/dashboard' | '/login' | '/guest/$id' | '/pitch/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
+  GuestIdRoute: typeof GuestIdRoute
   PitchIdRoute: typeof PitchIdRoute
 }
 
@@ -99,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PitchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/guest/$id': {
+      id: '/guest/$id'
+      path: '/guest/$id'
+      fullPath: '/guest/$id'
+      preLoaderRoute: typeof GuestIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -106,6 +123,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
+  GuestIdRoute: GuestIdRoute,
   PitchIdRoute: PitchIdRoute,
 }
 export const routeTree = rootRouteImport
