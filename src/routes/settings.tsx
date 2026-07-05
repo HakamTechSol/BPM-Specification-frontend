@@ -174,7 +174,7 @@ function SettingRow({
 }: {
   icon: typeof Mail;
   label: string;
-  children?: React.ReactNode;
+  children?: ReactNode;
   chevron?: boolean;
 }) {
   return (
