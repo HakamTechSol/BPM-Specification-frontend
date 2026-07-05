@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FailuresRouteImport } from './routes/failures'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -20,6 +21,11 @@ import { Route as GuestIdRouteImport } from './routes/guest.$id'
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MaintenanceRoute = MaintenanceRouteImport.update({
+  id: '/maintenance',
+  path: '/maintenance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/failures': typeof FailuresRoute
   '/login': typeof LoginRoute
+  '/maintenance': typeof MaintenanceRoute
   '/settings': typeof SettingsRoute
   '/guest/$id': typeof GuestIdRoute
   '/pitch/$id': typeof PitchIdRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/failures': typeof FailuresRoute
   '/login': typeof LoginRoute
+  '/maintenance': typeof MaintenanceRoute
   '/settings': typeof SettingsRoute
   '/guest/$id': typeof GuestIdRoute
   '/pitch/$id': typeof PitchIdRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/failures': typeof FailuresRoute
   '/login': typeof LoginRoute
+  '/maintenance': typeof MaintenanceRoute
   '/settings': typeof SettingsRoute
   '/guest/$id': typeof GuestIdRoute
   '/pitch/$id': typeof PitchIdRoute
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/failures'
     | '/login'
+    | '/maintenance'
     | '/settings'
     | '/guest/$id'
     | '/pitch/$id'
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/failures'
     | '/login'
+    | '/maintenance'
     | '/settings'
     | '/guest/$id'
     | '/pitch/$id'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/failures'
     | '/login'
+    | '/maintenance'
     | '/settings'
     | '/guest/$id'
     | '/pitch/$id'
@@ -116,6 +128,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   FailuresRoute: typeof FailuresRoute
   LoginRoute: typeof LoginRoute
+  MaintenanceRoute: typeof MaintenanceRoute
   SettingsRoute: typeof SettingsRoute
   GuestIdRoute: typeof GuestIdRoute
   PitchIdRoute: typeof PitchIdRoute
@@ -128,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/maintenance': {
+      id: '/maintenance'
+      path: '/maintenance'
+      fullPath: '/maintenance'
+      preLoaderRoute: typeof MaintenanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -180,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   FailuresRoute: FailuresRoute,
   LoginRoute: LoginRoute,
+  MaintenanceRoute: MaintenanceRoute,
   SettingsRoute: SettingsRoute,
   GuestIdRoute: GuestIdRoute,
   PitchIdRoute: PitchIdRoute,
