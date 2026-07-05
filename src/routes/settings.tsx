@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ManagerLayout } from "@/components/manager-layout";
 import { Card, SectionLabel } from "@/components/bp";
 import {
