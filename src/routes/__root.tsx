@@ -77,14 +77,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "BluePlug — Smart Campsite Electricity" },
+      {
+        name: "description",
+        content:
+          "BluePlug lets campsite managers control pitch electricity and guests monitor live usage — mobile first, no login for guests.",
+      },
+      { name: "author", content: "BluePlug" },
+      { name: "theme-color", content: "#2f6fed" },
+      { property: "og:title", content: "BluePlug — Smart Campsite Electricity" },
+      {
+        property: "og:description",
+        content:
+          "Control pitch power, monitor live amps, and manage failures from any device.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
