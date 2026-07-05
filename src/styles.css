@@ -180,12 +180,22 @@
   body {
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
   }
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     letter-spacing: -0.02em;
   }
 }
 
 @utility bp-tap {
-  transition: transform 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
-  &:active { transform: scale(0.98); }
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+  &:active {
+    transform: scale(0.97);
+  }
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }

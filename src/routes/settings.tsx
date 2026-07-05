@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { ManagerLayout } from "@/components/manager-layout";
-import { Card, SectionLabel } from "@/components/bp";
+import { Card, SectionLabel, SwitchRow } from "@/components/bp";
 import {
   Mail,
   CreditCard,
+  Building2,
   Clock,
   Zap,
   Languages,
@@ -12,6 +13,7 @@ import {
   Wrench,
   Check,
   ChevronRight,
+  Save,
 } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
@@ -35,27 +37,65 @@ function SettingsPage() {
   const [lang, setLang] = useState<(typeof LANGS)[number]>("English");
   const [theme, setTheme] = useState<(typeof THEMES)[number]>("System");
   const [maintenance, setMaintenance] = useState(false);
+  const [email, setEmail] = useState("jonas@duinrand.nl");
+  const [bankAccount, setBankAccount] = useState("NL91 ABNA 0417 1643 00");
+  const [paymentId, setPaymentId] = useState("STR_pi_3Qr...");
 
   return (
-    <ManagerLayout
-      title="Settings"
-      subtitle="Configure your campsite defaults"
-    >
+    <ManagerLayout title="Settings" subtitle="Configure your campsite defaults">
       <SectionLabel>Account</SectionLabel>
       <Card className="divide-y divide-border">
-        <SettingRow icon={Mail} label="Email">
+        <div className="flex items-center gap-3 p-4">
+          <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
+            <Mail className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[14px] font-semibold">Email</div>
+            <div className="text-[12px] text-muted-foreground">E-mailadres</div>
+          </div>
           <input
             type="email"
-            defaultValue="jonas@duinrand.nl"
-            className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Email address"
           />
-        </SettingRow>
-        <SettingRow icon={CreditCard} label="Payment settings" chevron>
-          <span className="text-[13px] text-muted-foreground">Stripe · Live</span>
-        </SettingRow>
+        </div>
+        <div className="flex items-center gap-3 p-4">
+          <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
+            <Building2 className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[14px] font-semibold">Bank account</div>
+            <div className="text-[12px] text-muted-foreground">Bankrekening</div>
+          </div>
+          <input
+            type="text"
+            value={bankAccount}
+            onChange={(e) => setBankAccount(e.target.value)}
+            className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Bank account number"
+          />
+        </div>
+        <div className="flex items-center gap-3 p-4">
+          <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
+            <CreditCard className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[14px] font-semibold">Payment ID</div>
+            <div className="text-[12px] text-muted-foreground">Betaal-ID</div>
+          </div>
+          <input
+            type="text"
+            value={paymentId}
+            onChange={(e) => setPaymentId(e.target.value)}
+            className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] font-mono outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Payment ID"
+          />
+        </div>
       </Card>
 
-      <SectionLabel>Session defaults</SectionLabel>
+      <SectionLabel>Session defaults (Standaardwaarden)</SectionLabel>
       <Card className="divide-y divide-border">
         <div className="p-4">
           <div className="mb-3 flex items-center gap-2.5">
@@ -65,16 +105,16 @@ function SettingsPage() {
             <div className="flex-1">
               <div className="text-[14px] font-semibold">Session duration</div>
               <div className="text-[12px] text-muted-foreground">
-                Default check-in length
+                Default check-in length · Standaard duur
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
             {DURATIONS.map((d) => (
               <button
                 key={d}
                 onClick={() => setDuration(d)}
-                className={`bp-tap h-11 rounded-lg text-[12.5px] font-semibold ${
+                className={`bp-tap h-12 rounded-lg text-[12.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   duration === d
                     ? "bg-primary text-primary-foreground shadow-glow"
                     : "bg-secondary text-foreground"
@@ -94,7 +134,7 @@ function SettingsPage() {
             <div className="flex-1">
               <div className="text-[14px] font-semibold">Default current</div>
               <div className="text-[12px] text-muted-foreground">
-                Applied to new pitches
+                Applied to new pitches · Nieuwe plaatsen
               </div>
             </div>
           </div>
@@ -103,7 +143,7 @@ function SettingsPage() {
               <button
                 key={a}
                 onClick={() => setAmp(a)}
-                className={`bp-tap h-12 rounded-lg text-[14px] font-semibold ${
+                className={`bp-tap h-12 rounded-lg text-[14px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   amp === a
                     ? "bg-primary text-primary-foreground shadow-glow"
                     : "bg-secondary text-foreground"
@@ -116,7 +156,7 @@ function SettingsPage() {
         </div>
       </Card>
 
-      <SectionLabel>Preferences</SectionLabel>
+      <SectionLabel>Preferences (Voorkeuren)</SectionLabel>
       <Card className="divide-y divide-border">
         <PickerRow
           icon={Languages}
@@ -127,40 +167,23 @@ function SettingsPage() {
         />
         <PickerRow
           icon={Moon}
-          label="Theme"
+          label="Theme (Thema)"
           value={theme}
           options={THEMES as unknown as readonly string[]}
           onChange={(v) => setTheme(v as typeof theme)}
         />
-        <div className="flex items-center gap-3 p-4">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-warning-soft text-warning">
-            <Wrench className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[14px] font-semibold">Maintenance mode</div>
-            <div className="text-[12px] text-muted-foreground">
-              Temporarily disable guest resets
-            </div>
-          </div>
-          <button
-            role="switch"
-            aria-checked={maintenance}
-            onClick={() => setMaintenance(!maintenance)}
-            className={`bp-tap relative h-7 w-12 rounded-full transition-colors ${
-              maintenance ? "bg-warning" : "bg-muted"
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
-                maintenance ? "translate-x-[22px]" : "translate-x-0.5"
-              }`}
-            />
-          </button>
-        </div>
+        <SwitchRow
+          icon={Wrench}
+          label="Maintenance mode"
+          description="Temporarily disable guest resets · Gast-reset uitschakelen"
+          checked={maintenance}
+          onCheckedChange={setMaintenance}
+          iconBg="bg-warning-soft text-warning"
+        />
       </Card>
 
-      <button className="bp-tap mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground shadow-glow">
-        <Check className="h-4 w-4" /> Save settings
+      <button className="bp-tap mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <Save className="h-4 w-4" /> Save settings (Opslaan)
       </button>
     </ManagerLayout>
   );
@@ -222,7 +245,7 @@ function PickerRow({
               onChange(o);
               (e.currentTarget.closest("details") as HTMLDetailsElement).open = false;
             }}
-            className="bp-tap flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-[14px] hover:bg-muted"
+            className="bp-tap flex w-full items-center justify-between rounded-lg px-3 min-h-[44px] text-left text-[14px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span>{o}</span>
             {value === o && <Check className="h-4 w-4 text-primary" />}

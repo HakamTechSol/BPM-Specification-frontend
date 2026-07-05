@@ -28,7 +28,10 @@ function LoginPage() {
         }}
       />
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-6 py-8">
-        <Link to="/" className="flex items-center gap-2.5">
+        <Link
+          to="/"
+          className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
+        >
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-glow">
             <Zap className="h-5 w-5" strokeWidth={2.5} />
           </div>
@@ -42,16 +45,19 @@ function LoginPage() {
           </p>
         </div>
 
-        {/* Segmented */}
-        <div className="mt-6 grid grid-cols-2 rounded-xl bg-secondary p-1">
+        <div
+          className="mt-6 grid grid-cols-2 rounded-xl bg-secondary p-1"
+          role="tablist"
+          aria-label="Sign in method"
+        >
           {(["otp", "password"] as const).map((m) => (
             <button
               key={m}
+              role="tab"
+              aria-selected={method === m}
               onClick={() => setMethod(m)}
-              className={`bp-tap rounded-lg py-2.5 text-[13.5px] font-medium ${
-                method === m
-                  ? "bg-card text-foreground shadow-card"
-                  : "text-muted-foreground"
+              className={`bp-tap rounded-lg py-3 text-[13.5px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                method === m ? "bg-card text-foreground shadow-card" : "text-muted-foreground"
               }`}
             >
               {m === "otp" ? "Email code" : "Password"}
@@ -67,8 +73,8 @@ function LoginPage() {
           }}
         >
           <label className="block">
-            <span className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
-              Email
+            <span className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
+              Email (E-mailadres)
             </span>
             <div className="flex items-center gap-2 rounded-xl border border-input bg-card px-3.5 focus-within:ring-2 focus-within:ring-ring">
               <Mail className="h-4 w-4 text-muted-foreground" />
@@ -83,8 +89,8 @@ function LoginPage() {
 
           {method === "password" && (
             <label className="block">
-              <span className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
-                Password
+              <span className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
+                Password (Wachtwoord)
               </span>
               <div className="flex items-center gap-2 rounded-xl border border-input bg-card px-3.5 focus-within:ring-2 focus-within:ring-ring">
                 <KeyRound className="h-4 w-4 text-muted-foreground" />
@@ -101,20 +107,21 @@ function LoginPage() {
           <label className="mt-1 flex cursor-pointer items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
             <span className="flex items-center gap-2.5">
               <ShieldCheck className="h-4 w-4 text-primary" />
-              <span className="text-[13.5px] font-medium">Remember this device</span>
+              <span className="text-[14px] font-medium">Remember this device</span>
             </span>
             <button
               type="button"
               role="switch"
               aria-checked={remember}
               onClick={() => setRemember(!remember)}
-              className={`relative h-6 w-11 rounded-full transition-colors ${
+              className={`relative h-11 w-[60px] shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 remember ? "bg-primary" : "bg-muted"
               }`}
+              aria-label="Remember this device"
             >
               <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                  remember ? "translate-x-[22px]" : "translate-x-0.5"
+                className={`absolute top-[5px] h-[34px] w-[34px] rounded-full bg-white shadow transition-transform ${
+                  remember ? "translate-x-[24px]" : "translate-x-[3px]"
                 }`}
               />
             </button>
@@ -122,14 +129,16 @@ function LoginPage() {
 
           <button
             type="submit"
-            className="bp-tap mt-2 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground shadow-glow"
+            className="bp-tap mt-2 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {method === "otp" ? "Send code" : "Sign in"}
             <ArrowRight className="h-4 w-4" />
           </button>
         </form>
 
-        <p className="mt-auto pt-8 text-center text-[11.5px] text-muted-foreground">
+        <p className="mt-auto pt-8 text-center text-[12px] text-muted-foreground">
+          Gast? Scan de QR-code op uw plaats — geen login nodig.
+          <br />
           Guest? Just scan the QR on your pitch — no login needed.
         </p>
       </div>
