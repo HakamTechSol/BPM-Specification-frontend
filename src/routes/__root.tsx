@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 
 import appCss from "../styles.css?url";
 
@@ -16,16 +16,16 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Pagina niet gevonden</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          De pagina die u zoekt bestaat niet of is verplaatst.
         </p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            Naar startpagina
           </Link>
         </div>
       </div>
@@ -41,10 +41,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          Deze pagina kon niet worden geladen
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Er is iets misgegaan. Probeer de pagina te vernieuwen of ga terug naar de startpagina.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -54,13 +54,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            Opnieuw proberen
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            Naar startpagina
           </a>
         </div>
       </div>
@@ -73,19 +73,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "BluePlug — Smart Campsite Electricity" },
+      { title: "BluePlug — Slimme stroomvoorziening voor campings" },
       {
         name: "description",
         content:
-          "BluePlug lets campsite managers control pitch electricity and guests monitor live usage — mobile first, no login for guests.",
+          "BluePlug laat kampeerplaatsbeheerders elektriciteit beheren en gasten live verbruik laten zien — mobiel-first, geen login voor gasten.",
       },
       { name: "author", content: "BluePlug" },
       { name: "theme-color", content: "#2f6fed" },
-      { property: "og:title", content: "BluePlug — Smart Campsite Electricity" },
+      { property: "og:title", content: "BluePlug — Slimme stroomvoorziening voor campings" },
       {
         property: "og:description",
         content:
-          "Control pitch power, monitor live amps, and manage failures from any device.",
+          "Beheer plaatsstroom, monitor live ampères en los storingen op vanaf elk apparaat.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -105,7 +105,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="nl">
       <head>
         <HeadContent />
       </head>
@@ -119,6 +119,25 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  
+  // Initialize theme on client side only to prevent hydration mismatch
+  useEffect(() => {
+    const stored = localStorage.getItem("theme") as "light" | "dark" | "system" | null;
+    const theme = stored || "system";
+    
+    const getSystemTheme = (): "light" | "dark" => {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    };
+    
+    const resolvedTheme = theme === "system" ? getSystemTheme() : theme;
+    const root = document.documentElement;
+    
+    if (resolvedTheme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

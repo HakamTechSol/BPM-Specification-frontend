@@ -27,12 +27,12 @@ function Splash() {
           </div>
           <h1 className="mt-6 text-[34px] font-semibold tracking-tight">BluePlug</h1>
           <p className="mt-2 max-w-xs text-[14px] leading-relaxed text-muted-foreground">
-            Smart electricity control for modern campsites. Manage every pitch or monitor your own —
-            from any device.
+            Slimme stroomvoorziening voor moderne campings. Beheer elke plaats of bekijk uw eigen verbruik —
+            vanaf elk apparaat.
           </p>
           <div className="mt-2 flex items-center gap-2 text-[12px] text-muted-foreground">
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-            Connected · v2.4.1
+            Verbonden · v2.4.1
           </div>
         </div>
 
@@ -41,7 +41,7 @@ function Splash() {
             to="/login"
             className="bp-tap flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Manager sign in
+            Beheerder inloggen
             <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
@@ -50,10 +50,10 @@ function Splash() {
             className="bp-tap flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card text-[15px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <QrCode className="h-4 w-4" />
-            Open guest demo
+            Gastdemo openen
           </Link>
           <p className="pt-2 text-center text-[12px] text-muted-foreground">
-            © 2026 BluePlug B.V. · Made for the outdoors. · Gemaakt voor de natuur.
+            © 2026 BluePlug B.V. · Gemaakt voor de natuur.
           </p>
         </div>
       </div>

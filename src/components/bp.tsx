@@ -18,6 +18,7 @@ import {
   Loader2,
   Check,
   X,
+  XCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -141,7 +142,7 @@ const map: Record<
   },
   error: {
     label: "Error",
-    icon: AlertTriangle,
+    icon: XCircle,
     bg: "bg-destructive-soft",
     fg: "text-destructive",
     ring: "ring-destructive/20",
@@ -236,18 +237,18 @@ export function MetricCard({
     danger: "text-destructive",
   }[tone];
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+    <div className="rounded-2xl border border-border bg-card p-2.5 sm:p-4 shadow-card">
       <div className="flex items-center justify-between text-muted-foreground">
-        <span className="text-[12px] font-medium uppercase tracking-wider">{label}</span>
-        {Icon && <Icon className="h-4 w-4" />}
+        <span className="text-[11px] sm:text-[12px] font-medium uppercase tracking-wider">{label}</span>
+        {Icon && <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
       </div>
-      <div className="mt-2 flex items-baseline gap-1">
-        <span className={`text-[26px] font-semibold tracking-tight tabular-nums ${toneCls}`}>
+      <div className="mt-1.5 sm:mt-2 flex items-baseline gap-0.5 sm:gap-1">
+        <span className={`text-[20px] sm:text-[26px] font-semibold tracking-tight tabular-nums ${toneCls}`}>
           {value}
         </span>
-        {unit && <span className="text-[13px] font-medium text-muted-foreground">{unit}</span>}
+        {unit && <span className="text-[11px] sm:text-[13px] font-medium text-muted-foreground">{unit}</span>}
       </div>
-      {hint && <div className="mt-1.5 text-[12px] text-muted-foreground">{hint}</div>}
+      {hint && <div className="mt-1 sm:mt-1.5 text-[11px] sm:text-[12px] text-muted-foreground leading-none">{hint}</div>}
     </div>
   );
 }
@@ -260,9 +261,9 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   );
 }
 
-export function SectionLabel({ children }: { children: ReactNode }) {
+export function SectionLabel({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className="mb-2 px-1 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className={`mt-4 mb-2 px-1 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground ${className}`}>
       {children}
     </div>
   );
@@ -521,7 +522,7 @@ export function SwitchRow({
   iconBg?: string;
 }) {
   return (
-    <div className="flex items-center gap-3 p-4">
+    <div className="flex items-center gap-3 p-3">
       <div
         className={`grid h-9 w-9 place-items-center rounded-lg ${iconBg || "bg-primary-soft text-primary"}`}
       >
@@ -534,7 +535,7 @@ export function SwitchRow({
       <Switch
         checked={checked}
         onCheckedChange={onCheckedChange}
-        className="h-11 w-[60px] [&>span]:h-[34px] [&>span]:w-[34px] [&>span]:data-[state=checked]:translate-x-[24px]"
+        className="h-12 w-[60px] [&>span]:h-[34px] [&>span]:w-[34px] [&>span]:data-[state=checked]:translate-x-[24px]"
       />
     </div>
   );

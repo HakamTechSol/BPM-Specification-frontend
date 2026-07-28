@@ -3,11 +3,11 @@ import type { ReactNode } from "react";
 import { LayoutDashboard, AlertTriangle, Wrench, Settings, Info, Zap, LogOut } from "lucide-react";
 
 const nav = [
-  { to: "/dashboard", label: "Pitches", icon: LayoutDashboard },
-  { to: "/failures", label: "Failures", icon: AlertTriangle },
-  { to: "/maintenance", label: "Maintenance", icon: Wrench },
-  { to: "/settings", label: "Settings", icon: Settings },
-  { to: "/about", label: "About", icon: Info },
+  { to: "/dashboard", label: "Plaatsen", icon: LayoutDashboard },
+  { to: "/failures", label: "Storingen", icon: AlertTriangle },
+  { to: "/maintenance", label: "Onderhoud", icon: Wrench },
+  { to: "/settings", label: "Instellingen", icon: Settings },
+  { to: "/about", label: "Over ons", icon: Info },
 ];
 
 export function ManagerLayout({
@@ -15,24 +15,26 @@ export function ManagerLayout({
   title,
   subtitle,
   right,
+  noScroll = false,
 }: {
   children: ReactNode;
   title?: string;
   subtitle?: string;
   right?: ReactNode;
+  noScroll?: boolean;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <div className="min-h-screen bg-background">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-sidebar lg:flex">
+    <div className={`bg-background ${noScroll ? "h-screen overflow-hidden flex flex-col lg:h-auto lg:overflow-visible" : "min-h-screen"}`}>
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-100 dark:border-slate-800/50 bg-sidebar lg:flex">
         <div className="flex h-16 items-center gap-2.5 px-6">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-glow">
             <Zap className="h-5 w-5" strokeWidth={2.5} />
           </div>
           <div className="leading-tight">
             <div className="text-[15px] font-semibold tracking-tight">BluePlug</div>
-            <div className="text-[12px] text-muted-foreground">Manager Console</div>
+            <div className="text-[12px] text-muted-foreground">Beheerdersconsole</div>
           </div>
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4">
@@ -42,9 +44,9 @@ export function ManagerLayout({
               <Link
                 key={n.to}
                 to={n.to}
-                className={`bp-tap flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                className={`bp-tap flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${
                   active
-                    ? "bg-primary-soft text-primary"
+                    ? "bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 }`}
               >
@@ -54,7 +56,7 @@ export function ManagerLayout({
             );
           })}
         </nav>
-        <div className="border-t border-sidebar-border p-3">
+        <div className="border-t border-slate-100 dark:border-slate-800/50 p-3">
           <Link
             to="/login"
             className="bp-tap flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -74,9 +76,9 @@ export function ManagerLayout({
         </div>
       </aside>
 
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 border-b border-border/70 bg-background/85 backdrop-blur-xl pt-[env(safe-area-inset-top,0px)]">
-          <div className="mx-auto flex h-16 max-w-5xl items-center gap-3 px-5 lg:px-8">
+      <div className={`lg:pl-64 ${noScroll ? "flex-1 flex flex-col min-h-0" : ""}`}>
+        <header className="sticky top-0 z-20 border-b border-slate-100 dark:border-slate-800/50 bg-background/85 backdrop-blur-xl pt-[env(safe-area-inset-top,0px)] shrink-0">
+          <div className="mx-auto flex h-16 items-center gap-3 px-4 sm:px-5 lg:max-w-full lg:px-8">
             <Link
               to="/dashboard"
               className="flex items-center gap-2 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
@@ -94,16 +96,29 @@ export function ManagerLayout({
               )}
               {subtitle && <p className="truncate text-[12px] text-muted-foreground">{subtitle}</p>}
             </div>
-            {right}
+            <div className="flex items-center gap-2">
+              {right}
+              <Link
+                to="/login"
+                className="bp-tap flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:bg-destructive-soft hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+                aria-label="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </header>
 
-        <main className="mx-auto max-w-5xl px-5 pb-24 pt-5 lg:px-8 lg:pb-10 lg:pt-7">
+        <main className={`mx-auto w-full px-5 lg:max-w-7xl lg:px-8 lg:pb-10 lg:pt-7 ${
+          noScroll 
+            ? "flex-1 flex flex-col min-h-0 pb-0 pt-2 overflow-y-auto" 
+            : "space-y-3 sm:space-y-4 pb-20 pt-4 sm:pb-24 sm:pt-5"
+        }`}>
           {children}
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur-xl lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-100 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg lg:hidden">
         <div className="mx-auto grid max-w-lg grid-cols-5 px-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2">
           {nav.map((n) => {
             const active = pathname.startsWith(n.to);
@@ -111,21 +126,23 @@ export function ManagerLayout({
               <Link
                 key={n.to}
                 to={n.to}
-                className="bp-tap relative flex flex-col items-center gap-1 rounded-lg px-2 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className={`bp-tap relative flex flex-col items-center gap-1 rounded-lg px-2 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  active ? "bg-blue-50/50 dark:bg-blue-950/20" : ""
+                }`}
                 aria-current={active ? "page" : undefined}
               >
                 {active && (
-                  <span className="absolute -top-2 left-1/2 h-1 w-8 -translate-x-1/2 rounded-full bg-primary" />
+                  <span className="absolute -top-2 left-1/2 h-1 w-8 -translate-x-1/2 rounded-full bg-blue-600 dark:bg-blue-400" />
                 )}
                 <n.icon
                   className={`h-[22px] w-[22px] ${
-                    active ? "text-primary" : "text-muted-foreground"
+                    active ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground"
                   }`}
                   strokeWidth={active ? 2.4 : 1.8}
                 />
                 <span
-                  className={`text-[12px] font-medium ${
-                    active ? "text-primary" : "text-muted-foreground"
+                  className={`text-[10px] sm:text-[11px] font-semibold tracking-tight ${
+                    active ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground"
                   }`}
                 >
                   {n.label}

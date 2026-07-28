@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Zap, Mail, KeyRound, ArrowRight, ShieldCheck } from "lucide-react";
+import { Zap, Mail, KeyRound, ArrowRight, ShieldCheck, AlertTriangle, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { login, setToken } from "@/lib/api";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -13,9 +15,31 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const [method, setMethod] = useState<"otp" | "password">("otp");
   const [remember, setRemember] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!email || !password) {
+      setError("Vul uw gebruikersnaam en wachtwoord in");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await login(email, password);
+      setToken(res.token);
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login mislukt");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="relative min-h-screen bg-background">
@@ -27,119 +51,103 @@ function LoginPage() {
             "radial-gradient(60% 100% at 50% 0%, color-mix(in oklab, var(--primary) 18%, transparent), transparent 70%)",
         }}
       />
-      <div className="mx-auto flex min-h-screen max-w-md flex-col px-6 py-8">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col px-6 py-8 sm:max-w-lg md:max-w-xl lg:max-w-2xl lg:px-12 lg:py-16">
         <Link
           to="/"
-          className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
+          className="flex items-center gap-2.5 p-1 -ml-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
         >
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-glow">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground shadow-glow">
             <Zap className="h-5 w-5" strokeWidth={2.5} />
           </div>
           <span className="text-[15px] font-semibold tracking-tight">BluePlug</span>
         </Link>
 
-        <div className="mt-10">
-          <h1 className="text-[28px] font-semibold tracking-tight">Welcome back</h1>
-          <p className="mt-1.5 text-[14px] text-muted-foreground">
-            Sign in to manage your campsite pitches.
+        <div className="mt-10 lg:mt-16">
+          <h1 className="text-[28px] font-semibold tracking-tight sm:text-[32px] lg:text-[36px]">Welkom terug</h1>
+          <p className="mt-1.5 text-[14px] text-muted-foreground sm:text-[15px] lg:text-[16px]">
+            Log in om uw kampeerplaatsen te beheren.
           </p>
         </div>
 
-        <div
-          className="mt-6 grid grid-cols-2 rounded-xl bg-secondary p-1"
-          role="tablist"
-          aria-label="Sign in method"
-        >
-          {(["otp", "password"] as const).map((m) => (
-            <button
-              key={m}
-              role="tab"
-              aria-selected={method === m}
-              onClick={() => setMethod(m)}
-              className={`bp-tap rounded-lg py-3 text-[13.5px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                method === m ? "bg-card text-foreground shadow-card" : "text-muted-foreground"
-              }`}
-            >
-              {m === "otp" ? "Email code" : "Password"}
-            </button>
-          ))}
-        </div>
+        {error && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl bg-destructive-soft px-4 py-3 text-[13px] font-medium text-destructive">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {error}
+          </div>
+        )}
 
         <form
-          className="mt-5 space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            navigate({ to: "/dashboard" });
-          }}
+          className="mt-5 space-y-3 w-full"
+          onSubmit={handleSubmit}
         >
           <label className="block">
             <span className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
-              Email (E-mailadres)
+              Gebruikersnaam
             </span>
             <div className="flex items-center gap-2 rounded-xl border border-input bg-card px-3.5 focus-within:ring-2 focus-within:ring-ring">
               <Mail className="h-4 w-4 text-muted-foreground" />
               <input
-                type="email"
-                autoComplete="email"
-                placeholder="you@campsite.com"
+                type="text"
+                autoComplete="username"
+                placeholder="admin"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="h-12 w-full bg-transparent text-[15px] outline-none placeholder:text-muted-foreground/70"
               />
             </div>
           </label>
 
-          {method === "password" && (
-            <label className="block">
-              <span className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
-                Password (Wachtwoord)
-              </span>
-              <div className="flex items-center gap-2 rounded-xl border border-input bg-card px-3.5 focus-within:ring-2 focus-within:ring-ring">
-                <KeyRound className="h-4 w-4 text-muted-foreground" />
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className="h-12 w-full bg-transparent text-[15px] outline-none"
-                />
-              </div>
-            </label>
-          )}
-
-          <label className="mt-1 flex cursor-pointer items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
-            <span className="flex items-center gap-2.5">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <span className="text-[14px] font-medium">Remember this device</span>
+          <label className="block">
+            <span className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
+              Wachtwoord
             </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={remember}
-              onClick={() => setRemember(!remember)}
-              className={`relative h-11 w-[60px] shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                remember ? "bg-primary" : "bg-muted"
-              }`}
-              aria-label="Remember this device"
-            >
-              <span
-                className={`absolute top-[5px] h-[34px] w-[34px] rounded-full bg-white shadow transition-transform ${
-                  remember ? "translate-x-[24px]" : "translate-x-[3px]"
-                }`}
+            <div className="flex items-center gap-2 rounded-xl border border-input bg-card px-3.5 focus-within:ring-2 focus-within:ring-ring">
+              <KeyRound className="h-4 w-4 text-muted-foreground" />
+              <input
+                type="password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-12 w-full bg-transparent text-[15px] outline-none"
               />
-            </button>
+            </div>
           </label>
+
+          <div className="mt-1 flex items-center gap-2.5">
+            <Checkbox
+              id="remember"
+              checked={remember}
+              onCheckedChange={(checked) => setRemember(checked as boolean)}
+              className="h-5 w-5"
+            />
+            <label
+              htmlFor="remember"
+              className="flex items-center gap-2.5 cursor-pointer text-[14px] font-medium"
+            >
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              Onthoud dit apparaat
+            </label>
+          </div>
 
           <button
             type="submit"
-            className="bp-tap mt-2 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            disabled={submitting}
+            className="bp-tap mt-2 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
           >
-            {method === "otp" ? "Send code" : "Sign in"}
-            <ArrowRight className="h-4 w-4" />
+            {submitting ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <>
+                Inloggen
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </button>
         </form>
 
         <p className="mt-auto pt-8 text-center text-[12px] text-muted-foreground">
           Gast? Scan de QR-code op uw plaats — geen login nodig.
-          <br />
-          Guest? Just scan the QR on your pitch — no login needed.
         </p>
       </div>
     </div>

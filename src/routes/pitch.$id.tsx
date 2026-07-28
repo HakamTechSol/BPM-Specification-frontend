@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ManagerLayout } from "@/components/manager-layout";
 import {
   StatusChip,
@@ -9,8 +9,9 @@ import {
   ConfirmDialog,
   LoadingPitchCard,
   LoadingMetricsCard,
+  SwitchRow,
 } from "@/components/bp";
-import { getPitch } from "@/lib/pitches";
+import { getAllPitches, triggerSync, getSettings, type PitchSummary } from "@/lib/api";
 import {
   ChevronLeft,
   Power,
@@ -23,6 +24,8 @@ import {
   Sparkles,
   ChevronDown,
   Save,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/pitch/$id")({
@@ -35,306 +38,289 @@ export const Route = createFileRoute("/pitch/$id")({
   }),
 });
 
-const AMPS = [4, 6, 10, 16] as const;
-const FREE = ["Off", "0.5 kWh / day", "1 kWh / day", "2 kWh / day", "Unlimited"] as const;
 
 function PitchDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const pitch = getPitch(id);
-  const [power, setPower] = useState(
-    pitch?.status === "on" || pitch?.status === "always-on" || pitch?.status === "in-use",
-  );
-  const [maxAmp, setMaxAmp] = useState<(typeof AMPS)[number]>(
-    (pitch?.maxAmp as (typeof AMPS)[number]) ?? 10,
-  );
-  const [free, setFree] = useState<(typeof FREE)[number]>("Off");
+  const [pitch, setPitch] = useState<PitchSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [power, setPower] = useState(false);
+  const [amps, setAmps] = useState<number[]>([6, 8, 10, 12, 16]);
+  const [maxAmp, setMaxAmp] = useState(10);
   const [confirm, setConfirm] = useState<null | "checkout" | "checkin" | "save">(null);
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  if (!pitch) {
+  const initialPower = useRef(false);
+  const initialMaxAmp = useRef(10);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const [pitchData, settingsData] = await Promise.all([
+          getAllPitches(),
+          getSettings(),
+        ]);
+        if (!cancelled) {
+          // Load amperage options from settings
+          const ampOptions = settingsData.stroominstelling.map(Number).filter((n) => !isNaN(n));
+          setAmps(ampOptions.length > 0 ? ampOptions : [6, 8, 10, 12, 16]);
+
+          const pitchId = parseInt(id.replace(/\D/g, ""), 10);
+          const found = pitchData.pitches.find((p) => p.pitchId === pitchId);
+          if (found) {
+            setPitch(found);
+            setPower(found.gewenst === 1);
+            setMaxAmp(found.maxAmperage || 10);
+            initialPower.current = found.gewenst === 1;
+            initialMaxAmp.current = found.maxAmperage || 10;
+          }
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load pitch");
+          setLoading(false);
+        }
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  if (loading) {
     return (
-      <ManagerLayout title="Pitch not found">
+      <ManagerLayout title="Laden...">
+        <LoadingPitchCard />
+        <div className="mt-3">
+          <LoadingMetricsCard count={3} />
+        </div>
+      </ManagerLayout>
+    );
+  }
+
+  if (error || !pitch) {
+    return (
+      <ManagerLayout title="Pitch niet gevonden">
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="grid h-16 w-16 place-items-center rounded-2xl bg-muted text-muted-foreground">
             <Zap className="h-8 w-8" strokeWidth={1.5} />
           </div>
-          <h3 className="mt-4 text-[16px] font-semibold tracking-tight">Pitch not found</h3>
+          <h3 className="mt-4 text-[16px] font-semibold tracking-tight">Pitch niet gevonden</h3>
           <p className="mt-1.5 max-w-xs text-[13px] text-muted-foreground">
-            This pitch doesn't exist. It may have been removed.
+            Deze plaats bestaat niet of is verwijderd.
           </p>
           <Link
             to="/dashboard"
             className="bp-tap mt-5 flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[14px] font-semibold text-primary-foreground shadow-glow"
           >
-            <ChevronLeft className="h-4 w-4" /> Back to dashboard
+            <ChevronLeft className="h-4 w-4" /> Terug naar dashboard
           </Link>
         </div>
       </ManagerLayout>
     );
   }
 
-  const usagePct = Math.min(100, (pitch.currentAmp / maxAmp) * 100);
-
   return (
     <ManagerLayout
-      title={pitch.name}
-      subtitle={`Pitch ${pitch.number} (Plaats ${pitch.number})${pitch.guest ? " · " + pitch.guest + " (Gast)" : ""}`}
+      title={pitch.pitchName}
+      subtitle={`Plaats #${pitch.pitchId}`}
       right={
         <Link
           to="/dashboard"
-          className="bp-tap hidden h-10 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-[13px] font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
+          className="bp-tap hidden h-12 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-[13px] font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
         >
-          <ChevronLeft className="h-4 w-4" /> Back
+          <ChevronLeft className="h-4 w-4" /> Terug
         </Link>
       }
     >
-      <Link
-        to="/dashboard"
-        className="bp-tap -mt-1 mb-3 inline-flex h-11 items-center gap-1 text-[13px] font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden"
-      >
-        <ChevronLeft className="h-4 w-4" /> All pitches (Alle plaatsen)
-      </Link>
+      <div className="flex flex-col gap-3 lg:gap-4 max-w-4xl mx-auto w-full pb-32 sm:pb-24 lg:pb-20">
+        <Link
+          to="/dashboard"
+          className="bp-tap -mt-1 mb-1 inline-flex h-9 items-center gap-1 text-[13px] font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden"
+        >
+          <ChevronLeft className="h-4 w-4" /> Alle plaatsen
+        </Link>
 
-      {loading ? (
-        <>
-          <LoadingPitchCard />
-          <div className="mt-3">
-            <LoadingMetricsCard count={3} />
-          </div>
-        </>
-      ) : (
-        <>
-          <Card className="overflow-hidden">
-            <div
-              className="relative p-5"
-              style={{
-                background:
-                  "linear-gradient(135deg, color-mix(in oklab, var(--primary) 10%, transparent), transparent 60%)",
-              }}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <StatusChip status={pitch.status} size="lg" />
-                  <div className="mt-3 flex items-baseline gap-1.5">
-                    <span className="text-[42px] font-semibold tracking-tight tabular-nums">
-                      {pitch.currentAmp.toFixed(1)}
-                    </span>
-                    <span className="text-[16px] font-medium text-muted-foreground">A</span>
-                  </div>
-                  <div className="text-[12.5px] text-muted-foreground">
-                    of {maxAmp} A max · updated just now
-                  </div>
+        {saving ? (
+          <>
+            <LoadingPitchCard />
+            <div className="mt-3">
+              <LoadingMetricsCard count={3} />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <StatusChip status={pitch.gewenst === 1 ? "on" : "off"} size="sm" />
+              <span className="text-[12px] text-muted-foreground">
+                {pitch.gewenst === 1 ? "Aan" : "Uit"} · Max {maxAmp}A
+              </span>
+            </div>
+
+            <Card className="mt-1.5 overflow-hidden">
+              <SwitchRow
+                icon={Power}
+                label="Elektriciteit"
+                description={power ? "Stopcontact is ingeschakeld" : "Stopcontact is uit"}
+                checked={power}
+                onCheckedChange={setPower}
+                iconBg={power ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"}
+              />
+              <div className="border-t border-border px-3 py-1.5">
+                <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Maximale stroom
                 </div>
-                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary-soft text-primary">
-                  <Zap className="h-7 w-7" strokeWidth={2.3} />
+                <div className="grid grid-cols-4 gap-1.5">
+                  {amps.map((a) => (
+                    <button
+                      key={a}
+                      onClick={() => setMaxAmp(a)}
+                      className={`bp-tap flex h-9 flex-col items-center justify-center rounded-lg border text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        maxAmp === a
+                          ? "border-primary bg-primary text-primary-foreground shadow-glow"
+                          : "border-border bg-card text-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      <span className="tabular-nums leading-none">{a}</span>
+                      <span
+                        className={`text-[9.5px] font-medium leading-none mt-0.5 ${
+                          maxAmp === a ? "text-primary-foreground/85" : "text-muted-foreground"
+                        }`}
+                      >
+                        Amp
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
+            </Card>
 
-              <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${usagePct}%`,
-                    background:
-                      usagePct > 90
-                        ? "var(--color-destructive)"
-                        : usagePct > 70
-                          ? "var(--color-warning)"
-                          : "var(--color-success)",
-                  }}
-                />
+            <SectionLabel>Verbruik</SectionLabel>
+            <div className="grid grid-cols-2 gap-2 lg:gap-3">
+              <MetricCard
+                label="Vandaag"
+                value="--"
+                unit="kWh"
+                icon={Activity}
+                tone="primary"
+              />
+              <MetricCard
+                label="Totaal"
+                value="--"
+                unit="kWh"
+                icon={Gauge}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="fixed bottom-20 lg:bottom-0 inset-x-0 lg:left-64 z-20 border-t border-border bg-background/95 backdrop-blur-xl pt-2 pb-2 px-5 lg:px-8">
+        <div className="mx-auto max-w-4xl">
+          {saving ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex h-10 items-center justify-center rounded-xl bg-muted">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+              <div className="flex h-10 items-center justify-center rounded-xl bg-muted">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
             </div>
-          </Card>
-
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <MetricCard
-              label="Vandaag (Today)"
-              value={pitch.todayKwh.toFixed(2)}
-              unit="kWh"
-              icon={Activity}
-              tone="primary"
-            />
-            <MetricCard
-              label="Totaal (Total)"
-              value={pitch.totalKwh.toFixed(1)}
-              unit="kWh"
-              icon={Gauge}
-            />
-            <MetricCard
-              label="Current (Stroom)"
-              value={pitch.currentAmp.toFixed(1)}
-              unit="A"
-              icon={Zap}
-              tone={usagePct > 90 ? "danger" : usagePct > 70 ? "warning" : "success"}
-              hint={`${usagePct.toFixed(0)}% of limit`}
-            />
-          </div>
-
-          <SectionLabel>Power (Stroom)</SectionLabel>
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div
-                className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${
-                  power ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                <Power className="h-6 w-6" strokeWidth={2.3} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[15px] font-semibold">Electricity (Stroom)</div>
-                <div className="text-[13px] text-muted-foreground">
-                  {power ? "Power is delivered to the socket" : "Socket is switched off"}
-                </div>
-              </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
               <button
-                role="switch"
-                aria-checked={power}
-                onClick={() => setPower(!power)}
-                className={`bp-tap relative h-11 w-[60px] shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                  power ? "bg-success" : "bg-muted"
-                }`}
-                aria-label={`Turn power ${power ? "off" : "on"}`}
+                onClick={() => setConfirm("save")}
+                className="bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl bg-primary text-[13.5px] font-semibold text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <span
-                  className={`absolute top-[5px] h-[34px] w-[34px] rounded-full bg-white shadow transition-transform ${
-                    power ? "translate-x-[24px]" : "translate-x-[3px]"
-                  }`}
-                />
+                <Save className="h-4 w-4" /> Opslaan
               </button>
-            </div>
-          </Card>
-
-          <SectionLabel>Maximum current (Maximale stroom)</SectionLabel>
-          <Card className="p-3">
-            <div className="grid grid-cols-4 gap-2">
-              {AMPS.map((a) => (
+              {power ? (
                 <button
-                  key={a}
-                  onClick={() => setMaxAmp(a)}
-                  className={`bp-tap flex h-14 flex-col items-center justify-center rounded-xl border text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    maxAmp === a
-                      ? "border-primary bg-primary text-primary-foreground shadow-glow"
-                      : "border-border bg-card text-foreground hover:border-primary/40"
-                  }`}
+                  onClick={() => setConfirm("checkout")}
+                  className="bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-card text-[13.5px] font-semibold text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <span className="tabular-nums">{a}</span>
-                  <span
-                    className={`text-[12px] font-medium ${
-                      maxAmp === a ? "text-primary-foreground/80" : "text-muted-foreground"
-                    }`}
-                  >
-                    Amp
-                  </span>
+                  <LogOut className="h-4 w-4" /> Uitchecken
                 </button>
-              ))}
+              ) : (
+                <button
+                  onClick={() => setConfirm("checkin")}
+                  className="bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl bg-success text-[13.5px] font-semibold text-white shadow-sm hover:bg-success/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <LogIn className="h-4 w-4" /> Inchecken
+                </button>
+              )}
             </div>
-          </Card>
-
-          <SectionLabel>Free usage allowance (Gratis gebruik)</SectionLabel>
-          <Card>
-            <details className="group">
-              <summary className="flex cursor-pointer list-none items-center gap-3 p-4">
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-info-soft text-info">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[14px] font-semibold">{free}</div>
-                  <div className="text-[13px] text-muted-foreground">
-                    Complimentary energy included per day
-                  </div>
-                </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="border-t border-border p-2">
-                {FREE.map((o) => (
-                  <button
-                    key={o}
-                    onClick={() => setFree(o)}
-                    className="bp-tap flex w-full items-center justify-between rounded-lg px-3 min-h-[44px] text-left text-[14px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <span>{o}</span>
-                    {free === o && <Check className="h-4 w-4 text-primary" />}
-                  </button>
-                ))}
-              </div>
-            </details>
-          </Card>
-
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <button
-              onClick={() => setConfirm("save")}
-              className="bp-tap col-span-1 flex h-14 items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:col-span-3"
-            >
-              <Save className="h-4 w-4" /> Save changes (Opslaan)
-            </button>
-            {pitch.checkedIn ? (
-              <button
-                onClick={() => setConfirm("checkout")}
-                className="bp-tap flex h-14 items-center justify-center gap-2 rounded-2xl border border-border bg-card text-[15px] font-semibold text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:col-span-3"
-              >
-                <LogOut className="h-4 w-4" /> Check out guest (Gast uitchecken)
-              </button>
-            ) : (
-              <button
-                onClick={() => setConfirm("checkin")}
-                className="bp-tap flex h-14 items-center justify-center gap-2 rounded-2xl border border-border bg-card text-[15px] font-semibold text-success focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:col-span-3"
-              >
-                <LogIn className="h-4 w-4" /> Check in guest (Gast inchecken)
-              </button>
-            )}
-          </div>
-        </>
-      )}
+          )}
+        </div>
+      </div>
 
       <ConfirmDialog
         open={confirm === "save"}
-        onOpenChange={(open) => {
-          if (!open) setConfirm(null);
-        }}
-        title="Save changes?"
-        description="Current settings will be applied to this pitch immediately."
-        confirmLabel="Opslaan (Save)"
+        onOpenChange={(open) => { if (!open) setConfirm(null); }}
+        title="Wijzigingen opslaan?"
+        description="De instellingen worden direct toegepast."
+        confirmLabel="Opslaan"
         variant="default"
         icon={Save}
-        onConfirm={() => {
+        onConfirm={async () => {
           setConfirm(null);
-          navigate({ to: "/dashboard" });
+          setSaving(true);
+          try {
+            if (power !== initialPower.current) {
+              await triggerSync({ pitchId: pitch.pitchId, action: "toggle_power" });
+            }
+            if (maxAmp !== initialMaxAmp.current) {
+              await triggerSync({ pitchId: pitch.pitchId, action: "set_amperage", value: maxAmp });
+            }
+            navigate({ to: "/dashboard" });
+          } catch (err) {
+            console.error("Sync mislukt:", err);
+            setSaving(false);
+          }
         }}
       />
 
       <ConfirmDialog
         open={confirm === "checkout"}
-        onOpenChange={(open) => {
-          if (!open) setConfirm(null);
-        }}
-        title="Check out guest?"
-        description="Power will be switched off and the session will end. De gast wordt uitgecheckt."
-        confirmLabel="Check out"
-        cancelLabel="Cancel (Annuleren)"
+        onOpenChange={(open) => { if (!open) setConfirm(null); }}
+        title="Gast uitchecken?"
+        description="De stroom wordt uitgeschakeld en de sessie wordt beëindigd."
+        confirmLabel="Uitchecken"
         variant="destructive"
         icon={LogOut}
-        onConfirm={() => {
+        onConfirm={async () => {
           setConfirm(null);
-          navigate({ to: "/dashboard" });
+          setSaving(true);
+          try {
+            await triggerSync({ pitchId: pitch.pitchId, action: "set_power_state", value: 0 });
+            navigate({ to: "/dashboard" });
+          } catch (err) {
+            console.error("Checkout mislukt:", err);
+            setSaving(false);
+          }
         }}
       />
 
       <ConfirmDialog
         open={confirm === "checkin"}
-        onOpenChange={(open) => {
-          if (!open) setConfirm(null);
-        }}
-        title="Check in guest?"
-        description="A new session will start and power will be enabled. Een nieuwe gast wordt ingecheckt."
-        confirmLabel="Check in"
-        cancelLabel="Cancel (Annuleren)"
+        onOpenChange={(open) => { if (!open) setConfirm(null); }}
+        title="Gast inchecken?"
+        description="Er start een nieuwe sessie en de stroom wordt ingeschakeld."
+        confirmLabel="Inchecken"
         variant="default"
         icon={LogIn}
-        onConfirm={() => {
+        onConfirm={async () => {
           setConfirm(null);
-          navigate({ to: "/dashboard" });
+          setSaving(true);
+          try {
+            await triggerSync({ pitchId: pitch.pitchId, action: "set_power_state", value: 1 });
+            navigate({ to: "/dashboard" });
+          } catch (err) {
+            console.error("Checkin mislukt:", err);
+            setSaving(false);
+          }
         }}
       />
     </ManagerLayout>
