@@ -12,4 +12,9 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  nitro: {
+    // Hard-pin the deploy target so the build emits a plain Node.js server
+    // instead of the Lovable default Cloudflare Worker.
+    preset: "node-server",
+  },
 });
