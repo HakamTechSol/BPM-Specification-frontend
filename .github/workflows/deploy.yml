@@ -54,7 +54,10 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            export PATH=$PATH:~/.npm-global/bin
+            cd ~/html/blueplug-frontend/.output/server
+            npm install --production
             cd ~/html/blueplug-frontend
-            pm2 delete blueplug-frontend || true
-            PORT=3002 pm2 start .output/server/index.mjs --name blueplug-frontend
-            pm2 save
+            PORT=3002 npx pm2 delete blueplug-frontend || true
+            PORT=3002 npx pm2 start .output/server/index.mjs --name blueplug-frontend
+            npx pm2 save
