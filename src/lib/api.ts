@@ -76,7 +76,12 @@ async function request<T>(
 
   if (!res.ok) {
     const msg = (body as ApiError).error || `Request failed with status ${res.status}`;
-    if (res.status === 401 || res.status === 403) clearToken();
+    if (res.status === 401 || res.status === 403) {
+      clearToken();
+      if (typeof window !== 'undefined') {
+        window.location.replace('/login');
+      }
+    }
     throw new Error(msg);
   }
 

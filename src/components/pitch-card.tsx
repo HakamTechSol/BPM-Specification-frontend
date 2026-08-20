@@ -45,9 +45,6 @@ export function PitchCard({ pitch }: { pitch: PitchSummary }) {
           <span className="truncate text-[17px] font-bold tracking-tight text-foreground">
             {pitch.veldNaam ? `${pitch.veldNaam} ` : ''}{pitch.pitchName}
           </span>
-          <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-[12px] font-semibold text-muted-foreground">
-            #{pitch.pitchId}
-          </span>
         </div>
         <div className="mt-1 flex items-center gap-2.5">
           <span className="text-[14px] font-medium text-muted-foreground tabular-nums">

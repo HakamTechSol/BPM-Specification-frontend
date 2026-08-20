@@ -6,8 +6,10 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  redirect,
 } from "@tanstack/react-router";
 import { type ReactNode, useEffect } from "react";
+import { isAuthenticated } from "../lib/api";
 
 import appCss from "../styles.css?url";
 
@@ -68,7 +70,17 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+const PUBLIC_PREFIXES = ['/login', '/guest'];
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  beforeLoad: () => {
+    if (typeof window === 'undefined') return;
+    const path = window.location.pathname;
+    const isPublic = PUBLIC_PREFIXES.some((p) => path.startsWith(p));
+    if (!isPublic && !isAuthenticated()) {
+      throw redirect({ to: '/login' });
+    }
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },

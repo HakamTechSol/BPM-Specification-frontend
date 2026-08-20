@@ -1,6 +1,7 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { LayoutDashboard, AlertTriangle, Wrench, Settings, Info, Zap, LogOut } from "lucide-react";
+import { clearToken } from "@/lib/api";
 
 const nav = [
   { to: "/dashboard", label: "Plaatsen", icon: LayoutDashboard },
@@ -24,6 +25,12 @@ export function ManagerLayout({
   noScroll?: boolean;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const router = useRouter();
+
+  const handleSignOut = () => {
+    clearToken();
+    router.navigate({ to: '/login' });
+  };
 
   return (
     <div className={`bg-background ${noScroll ? "h-screen overflow-hidden flex flex-col lg:h-auto lg:overflow-visible" : "min-h-screen"}`}>
@@ -57,13 +64,13 @@ export function ManagerLayout({
           })}
         </nav>
         <div className="border-t border-slate-100 dark:border-slate-800/50 p-3">
-          <Link
-            to="/login"
-            className="bp-tap flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          <button
+            onClick={handleSignOut}
+            className="bp-tap flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-full"
           >
             <LogOut className="h-[18px] w-[18px]" />
             Sign out (Uitloggen)
-          </Link>
+          </button>
           <div className="mt-3 flex items-center gap-2.5 rounded-lg bg-sidebar-accent/60 px-3 py-2.5">
             <div className="grid h-8 w-8 place-items-center rounded-full bg-primary text-[13px] font-semibold text-primary-foreground">
               JD
@@ -98,13 +105,13 @@ export function ManagerLayout({
             </div>
             <div className="flex items-center gap-2">
               {right}
-              <Link
-                to="/login"
+              <button
+                onClick={handleSignOut}
                 className="bp-tap flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:bg-destructive-soft hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
                 aria-label="Sign out"
               >
                 <LogOut className="h-4 w-4" />
-              </Link>
+              </button>
             </div>
           </div>
         </header>
