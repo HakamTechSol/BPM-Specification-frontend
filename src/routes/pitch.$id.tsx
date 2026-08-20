@@ -124,7 +124,7 @@ function PitchDetail() {
 
   return (
     <ManagerLayout
-      title={pitch.pitchName}
+      title={pitch.veldNaam ? `${pitch.veldNaam} ${pitch.pitchName}` : pitch.pitchName}
       subtitle={`Plaats #${pitch.pitchId}`}
       right={
         <Link

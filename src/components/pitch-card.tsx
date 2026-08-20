@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Zap, Power, ChevronRight, Activity, Gauge, Bolt } from "lucide-react";
+import { Zap, Power, ChevronRight, Activity, Gauge, AlertTriangle } from "lucide-react";
 import type { PitchSummary } from "@/lib/api";
 
 const powerMap: Record<"on" | "off", { label: string; icon: typeof Zap; bg: string; fg: string }> = {
@@ -26,15 +26,24 @@ export function PitchCard({ pitch }: { pitch: PitchSummary }) {
     <Link
       to="/pitch/$id"
       params={{ id: String(pitch.pitchId) }}
-      className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-card hover:border-primary/30 hover:shadow-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all"
+      className={`group flex items-center gap-4 rounded-2xl border bg-card p-4 shadow-card hover:shadow-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all ${
+        pitch.errorcode !== 0 ? "border-destructive/40" : "border-border hover:border-primary/30"
+      }`}
     >
-      <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl ring-1 ring-inset ${c.bg} ${c.fg} ${status === "on" ? "ring-success/20" : "ring-border"}`}>
-        <Icon className="h-7 w-7" strokeWidth={2.2} />
+      <div className="relative">
+        <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl ring-1 ring-inset ${c.bg} ${c.fg} ${status === "on" ? "ring-success/20" : "ring-border"}`}>
+          <Icon className="h-7 w-7" strokeWidth={2.2} />
+        </div>
+        {pitch.errorcode !== 0 && (
+          <div className="absolute -top-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-destructive text-destructive-foreground shadow-sm">
+            <AlertTriangle className="h-3 w-3" strokeWidth={2.5} />
+          </div>
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate text-[17px] font-bold tracking-tight text-foreground">
-            {pitch.pitchName}
+            {pitch.veldNaam ? `${pitch.veldNaam} ` : ''}{pitch.pitchName}
           </span>
           <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-[12px] font-semibold text-muted-foreground">
             #{pitch.pitchId}

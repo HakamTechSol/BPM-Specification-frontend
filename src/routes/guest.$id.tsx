@@ -153,7 +153,7 @@ function GuestScreen() {
     );
   }
 
-  const { pitchName, gewenst, maxAmperage, kwhnu, kwhtot, iverb, errorcode } = status;
+  const { pitchName, veldNaam, gewenst, maxAmperage, kwhnu, kwhtot, iverb, errorcode } = status;
   const powerOn = gewenst === 1;
   const timeSinceUpdate = Math.floor((Date.now() - lastUpdated.getTime()) / 1000);
   const canReset = errorcode === 1 && resetCooldown === 0;
@@ -185,12 +185,7 @@ function GuestScreen() {
       <main className="flex-1 space-y-3 px-4 pb-24 pt-4 max-w-md mx-auto w-full overflow-y-auto sm:max-w-lg md:max-w-xl lg:max-w-2xl">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-[22px] font-semibold tracking-tight leading-tight">{pitchName}</h1>
-            <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted-foreground">
-              <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium leading-none">
-                Plaats #{pitchId}
-              </span>
-            </div>
+            <h1 className="text-[22px] font-semibold tracking-tight leading-tight">{veldNaam ? `${veldNaam} ` : ''}{pitchName}</h1>
           </div>
           <div className="flex flex-col items-end gap-1">
             {powerOn ? (

@@ -11,6 +11,7 @@ export interface TriggerSyncPayload {
 export interface ResolveHashResponse {
   pitchId: number;
   pitchName: string;
+  veldNaam: string;
 }
 
 export interface LoginResponse {
@@ -22,6 +23,7 @@ export interface LoginResponse {
 export interface GuestPitchStatus {
   pitchId: number;
   pitchName: string;
+  veldNaam: string;
   stat: number;
   gewenst: number;
   kwhnu: number;
@@ -81,10 +83,10 @@ async function request<T>(
   return body as T;
 }
 
-export function login(username: string, password: string): Promise<LoginResponse> {
+export function login(username: string, password: string, remember?: boolean): Promise<LoginResponse> {
   return request('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, remember }),
   });
 }
 
@@ -112,6 +114,7 @@ export function resetPitchError(pltsnr: number): Promise<{ success: boolean; pit
 export interface PitchSummary {
   pitchId: number;
   pitchName: string;
+  veldNaam: string;
   stat: number;
   gewenst: number;
   kwhnu: number;
@@ -148,6 +151,7 @@ export interface ManagerSettings {
   id: number;
   stroominstelling: string[];
   vrijverbruikinstelling: string[];
+  sessionDurationDays: number;
   eigenaar: Eigenaar;
 }
 
@@ -155,10 +159,10 @@ export function getSettings(): Promise<ManagerSettings> {
   return request('/api/settings', {}, true);
 }
 
-export function updateSettings(eigenaar: Partial<Eigenaar>): Promise<{ success: boolean }> {
+export function updateSettings(payload: { eigenaar?: Partial<Eigenaar>; sessionDurationDays?: number }): Promise<{ success: boolean }> {
   return request('/api/settings', {
     method: 'PUT',
-    body: JSON.stringify({ eigenaar }),
+    body: JSON.stringify(payload),
   }, true);
 }
 
@@ -168,6 +172,7 @@ export interface FailureRecord {
   id: number;
   pitchId: number;
   pitchName: string;
+  veldNaam: string;
   occurredAt: string;
   startMeterReading: number | null;
   resolvedAt: string | null;

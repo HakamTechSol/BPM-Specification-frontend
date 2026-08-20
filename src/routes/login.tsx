@@ -31,7 +31,7 @@ function LoginPage() {
     }
     setSubmitting(true);
     try {
-      const res = await login(email, password);
+      const res = await login(email, password, remember);
       setToken(res.token);
       navigate({ to: "/dashboard" });
     } catch (err) {

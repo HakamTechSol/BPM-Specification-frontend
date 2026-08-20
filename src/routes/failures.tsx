@@ -259,7 +259,7 @@ function FailurePage() {
                             params={{ id: String(f.pitchId) }}
                             className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 font-medium text-foreground hover:bg-primary-soft hover:text-primary"
                           >
-                            {f.pitchName} (#{f.pitchId})
+                            {f.veldNaam ? `${f.veldNaam} ` : ''}{f.pitchName} (#{f.pitchId})
                           </Link>
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
@@ -307,7 +307,7 @@ function FailurePage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-[13px] font-medium text-foreground">
-                          {failureTypeLabel(f.failureCode)} — {f.pitchName}
+                          {failureTypeLabel(f.failureCode)} — {f.veldNaam ? `${f.veldNaam} ` : ''}{f.pitchName}
                         </div>
                         <div className="text-[11px] text-muted-foreground">
                           Opgelost {f.resolvedAt ? formatTimeAgo(f.resolvedAt) : ""}

@@ -1,17 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ManagerLayout } from "@/components/manager-layout";
-import { ConnectionBadge, EmptyState, ErrorState } from "@/components/bp";
+import { EmptyState, ErrorState } from "@/components/bp";
 import { PitchCard, PitchCardSkeleton } from "@/components/pitch-card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getAllPitches, type PitchSummary } from "@/lib/api";
 import {
   Zap,
   Activity,
-  AlertTriangle,
   ShieldAlert,
-  Wifi,
-  Database,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
@@ -37,8 +34,6 @@ function Dashboard() {
   const [pitches, setPitches] = useState<PitchSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [gatewayOnline, setGatewayOnline] = useState(true);
-  const [dbOnline, setDbOnline] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,16 +86,6 @@ function Dashboard() {
       subtitle={`${stats.total} plaatsen · ${stats.on} actief`}
       right={
         <div className="flex shrink-0 items-center gap-2">
-          <div className="hidden sm:flex items-center gap-2">
-            <ConnectionBadge
-              status={gatewayOnline ? "online" : "offline"}
-              label={gatewayOnline ? "Poort" : "Offline"}
-            />
-            <ConnectionBadge
-              status={dbOnline ? "online" : "offline"}
-              label={dbOnline ? "Database" : "Offline"}
-            />
-          </div>
           <ThemeToggle />
         </div>
       }
@@ -133,48 +118,6 @@ function Dashboard() {
             {stats.total}
           </div>
           <div className="text-[12px] sm:text-[14px] font-medium text-muted-foreground">Totaal</div>
-        </div>
-      </div>
-
-      {/* Connection status */}
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
-        <div className="flex items-center gap-2 sm:gap-3 rounded-2xl border border-border bg-card p-2.5 sm:p-4 shadow-card">
-          <div
-            className={`grid h-8 w-8 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-lg sm:rounded-xl ${gatewayOnline ? "bg-success-soft text-success" : "bg-destructive-soft text-destructive"}`}
-          >
-            <Wifi className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.4} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[13px] sm:text-[15px] font-bold text-foreground truncate">Poort</div>
-            <div className="text-[11px] sm:text-[13px] text-muted-foreground">
-              {gatewayOnline ? "Online" : "Offline"}
-            </div>
-          </div>
-          <div className="hidden sm:block shrink-0">
-            <ConnectionBadge
-              status={gatewayOnline ? "online" : "offline"}
-              label={gatewayOnline ? "Online" : "Offline"}
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3 rounded-2xl border border-border bg-card p-2.5 sm:p-4 shadow-card">
-          <div
-            className={`grid h-8 w-8 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-lg sm:rounded-xl ${dbOnline ? "bg-success-soft text-success" : "bg-destructive-soft text-destructive"}`}
-          >
-            <Database className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.4} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[13px] sm:text-[15px] font-bold text-foreground truncate">Database</div>
-            <div className="text-[11px] sm:text-[13px] text-muted-foreground">
-              {dbOnline ? "Verbonden" : "Offline"}
-            </div>
-          </div>
-          <div className="hidden sm:block shrink-0">
-            <ConnectionBadge
-              status={dbOnline ? "online" : "offline"}
-              label={dbOnline ? "Online" : "Offline"}
-            />
-          </div>
         </div>
       </div>
 

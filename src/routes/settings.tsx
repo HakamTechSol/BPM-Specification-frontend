@@ -12,6 +12,7 @@ import {
   Globe,
   FileText,
   Zap,
+  ShieldCheck,
   Check,
   ChevronRight,
   Save,
@@ -52,6 +53,7 @@ function SettingsPage() {
   // Settings arrays (read-only)
   const [stroominstelling, setStroominstelling] = useState<string[]>([]);
   const [vrijverbruikinstelling, setVrijverbruikinstelling] = useState<string[]>([]);
+  const [sessionDurationDays, setSessionDurationDays] = useState(30);
 
   useEffect(() => {
     async function loadSettings() {
@@ -71,6 +73,7 @@ function SettingsPage() {
         setBtwNummer(e['btw-nummer'] || "");
         setStroominstelling(data.stroominstelling || []);
         setVrijverbruikinstelling(data.vrijverbruikinstelling || []);
+        setSessionDurationDays(data.sessionDurationDays ?? 30);
         setLoading(false);
       } catch (err) {
         console.error("Failed to load settings:", err);
@@ -86,17 +89,20 @@ function SettingsPage() {
     setErrorMessage("");
     try {
       await updateSettings({
-        naam: naam || undefined,
-        straat: straat || undefined,
-        nummer: nummer || undefined,
-        postcode: postcode || undefined,
-        plaats: plaats || undefined,
-        land: land || undefined,
-        telefoon: telefoon || undefined,
-        email: email || undefined,
-        website: website || undefined,
-        kvk: kvk || undefined,
-        'btw-nummer': btwNummer || undefined,
+        eigenaar: {
+          naam: naam || undefined,
+          straat: straat || undefined,
+          nummer: nummer || undefined,
+          postcode: postcode || undefined,
+          plaats: plaats || undefined,
+          land: land || undefined,
+          telefoon: telefoon || undefined,
+          email: email || undefined,
+          website: website || undefined,
+          kvk: kvk || undefined,
+          'btw-nummer': btwNummer || undefined,
+        },
+        sessionDurationDays,
       });
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 3000);
@@ -328,6 +334,37 @@ function SettingsPage() {
                 {kwh} kWh
               </span>
             ))}
+          </div>
+        </Card>
+
+        <SectionLabel>Sessieduur</SectionLabel>
+        <Card className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[14px] font-semibold">Onthoud apparaat duur</div>
+              <div className="text-[12px] text-muted-foreground">
+                Aantal dagen dat een ingelogd apparaat onthouden wordt
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={365}
+                step={1}
+                value={sessionDurationDays}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v)) setSessionDurationDays(Math.max(1, Math.min(365, v)));
+                }}
+                className="h-12 w-24 rounded-lg border border-input bg-card px-3 text-center text-[13.5px] font-semibold outline-none focus:ring-2 focus:ring-ring tabular-nums"
+                aria-label="Sessieduur in dagen"
+              />
+              <span className="text-[13px] font-medium text-muted-foreground">dagen</span>
+            </div>
           </div>
         </Card>
 

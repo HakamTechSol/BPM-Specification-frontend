@@ -211,7 +211,7 @@ function MaintenancePage() {
             >
               {pitches.map((p) => (
                 <option key={p.pitchId} value={p.pitchId}>
-                  {p.pitchName} (#{p.pitchId})
+                  {p.veldNaam ? `${p.veldNaam} ` : ''}{p.pitchName} (#{p.pitchId})
                 </option>
               ))}
             </select>
