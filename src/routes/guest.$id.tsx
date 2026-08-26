@@ -5,10 +5,9 @@ import {
   StatusIcon,
   MetricCard,
   Card,
-  ConnectionBadge,
   EmptyState,
 } from "@/components/bp";
-import { Zap, Activity, Gauge, TreePine, Wifi, RefreshCw, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
+import { Zap, Activity, Gauge, TreePine, RefreshCw, Loader2, AlertTriangle, CheckCircle, Calendar } from "lucide-react";
 
 export const Route = createFileRoute("/guest/$id")({
   component: GuestScreen,
@@ -36,7 +35,6 @@ function GuestScreen() {
   const [status, setStatus] = useState<GuestPitchStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [connected, setConnected] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [pitchId, setPitchId] = useState<number | null>(null);
   const [resetCooldown, setResetCooldown] = useState<number>(0);
@@ -74,13 +72,11 @@ function GuestScreen() {
         const data = await getGuestPitchStatus(pitchId!);
         if (!cancelled) {
           setStatus(data);
-          setConnected(true);
           setLastUpdated(new Date());
           setLoading(false);
         }
       } catch {
         if (!cancelled) {
-          setConnected(false);
           setLoading(false);
         }
       }
@@ -170,14 +166,14 @@ function GuestScreen() {
           }}
         />
         <div className="mx-auto flex max-w-md items-center justify-between px-4 pb-1 pt-3">
+          <div className="flex items-center gap-1 text-[15px] font-semibold text-muted-foreground">
+            <TreePine className="h-4 w-4" /> Duinrand Camping
+          </div>
           <div className="flex items-center gap-1.5">
             <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Zap className="h-3.5 w-3.5" strokeWidth={2.6} />
             </div>
             <span className="text-[13.5px] font-semibold tracking-tight">BluePlug</span>
-          </div>
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <TreePine className="h-3 w-3" /> Duinrand Camping
           </div>
         </div>
       </header>
@@ -186,23 +182,6 @@ function GuestScreen() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-[22px] font-semibold tracking-tight leading-tight">{veldNaam ? `${veldNaam} ` : ''}{pitchName}</h1>
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            {powerOn ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                Actief
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 rounded-full bg-destructive-soft px-2 py-0.5 text-[11px] font-semibold text-destructive">
-                <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
-                Uitgeschakeld
-              </span>
-            )}
-            <ConnectionBadge
-              status={connected ? "online" : "offline"}
-              label={connected ? "Verbonden" : "Offline"}
-            />
           </div>
         </div>
 
@@ -236,11 +215,7 @@ function GuestScreen() {
               </div>
             </div>
 
-            <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Wifi className="h-3 w-3" />
-                {connected ? "Verbonden" : "Geen verbinding"}
-              </div>
+            <div className="mt-2 flex items-center justify-end text-[11px] text-muted-foreground">
               <div className="flex items-center gap-1">
                 <RefreshCw className="h-3 w-3" />
                 {timeSinceUpdate < 60
@@ -267,14 +242,54 @@ function GuestScreen() {
           />
         </div>
 
-        <p className="text-center text-[11px] text-muted-foreground leading-tight">
-          Geen login nodig · gegevens worden elke 5 seconden ververst
-          {errorcode !== 0 && (
-            <span className="block mt-1 text-destructive font-medium">
-              Foutcode: {errorcode}
-            </span>
-          )}
-        </p>
+        {status.reservation ? (
+          <Card className="overflow-hidden">
+            <div className="p-3">
+              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <Calendar className="h-3 w-3" /> Reservering
+              </div>
+              <div className="divide-y divide-border">
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-[12px] text-muted-foreground">Check-in</span>
+                  <span className="text-[13px] font-medium tabular-nums">
+                    {new Date(status.reservation.checkIn).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                {status.reservation.reserveringNummer && (
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-[12px] text-muted-foreground">Reserveringsnr.</span>
+                    <span className="text-[13px] font-medium">{status.reservation.reserveringNummer}</span>
+                  </div>
+                )}
+                {status.reservation.usageLimit != null && (
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-[12px] text-muted-foreground">Verbruikslimiet</span>
+                    <span className="text-[13px] font-medium tabular-nums">{status.reservation.usageLimit} kWh</span>
+                  </div>
+                )}
+                {status.reservation.eStart != null && (
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-[12px] text-muted-foreground">Meterstand start</span>
+                    <span className="text-[13px] font-medium tabular-nums">{status.reservation.eStart} kWh</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <Card className="overflow-hidden">
+            <div className="flex items-center gap-2.5 px-3 py-3 text-[13px] text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              Geen actieve reservering
+            </div>
+          </Card>
+        )}
+
+        {errorcode !== 0 && (
+          <p className="text-center text-[11px] text-destructive font-medium leading-tight">
+            Foutcode: {errorcode}
+          </p>
+        )}
       </main>
 
       <div className="sticky bottom-0 z-20 border-t border-border bg-background/95 backdrop-blur-xl pt-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] px-4 shrink-0">

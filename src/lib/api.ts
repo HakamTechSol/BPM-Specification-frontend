@@ -4,7 +4,7 @@ const BACKEND_URL: string =
 
 export interface TriggerSyncPayload {
   pitchId: number;
-  action: 'toggle_power' | 'set_amperage' | 'set_power_state';
+  action: 'toggle_power' | 'set_amperage' | 'set_power_state' | 'set_free_usage' | 'set_afstandbesturing';
   value?: number;
 }
 
@@ -31,10 +31,18 @@ export interface GuestPitchStatus {
   iverb: number;
   maxAmperage: number;
   errorcode: number;
+  reservation: ReservationInfo | null;
 }
 
 export interface ApiError {
   error: string;
+}
+
+export interface ReservationInfo {
+  checkIn: string;
+  reserveringNummer: string | null;
+  usageLimit: number | null;
+  eStart: number | null;
 }
 
 const TOKEN_KEY = 'blueplug_jwt_token';
@@ -126,8 +134,11 @@ export interface PitchSummary {
   kwhtot: number;
   iverb: number;
   maxAmperage: number;
+  freeUsage: number;
   errorcode: number;
   guestName: string | null;
+  afstandbesturing: number;
+  reservation: ReservationInfo | null;
 }
 
 export interface AllPitchesResponse {

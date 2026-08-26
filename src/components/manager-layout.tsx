@@ -1,7 +1,8 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { LayoutDashboard, AlertTriangle, Wrench, Settings, Info, Zap, LogOut } from "lucide-react";
 import { clearToken } from "@/lib/api";
+import { ConfirmDialog } from "@/components/bp";
 
 const nav = [
   { to: "/dashboard", label: "Plaatsen", icon: LayoutDashboard },
@@ -26,6 +27,7 @@ export function ManagerLayout({
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const router = useRouter();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleSignOut = () => {
     clearToken();
@@ -65,7 +67,7 @@ export function ManagerLayout({
         </nav>
         <div className="border-t border-slate-100 dark:border-slate-800/50 p-3">
           <button
-            onClick={handleSignOut}
+            onClick={() => setShowLogoutConfirm(true)}
             className="bp-tap flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-full"
           >
             <LogOut className="h-[18px] w-[18px]" />
@@ -106,7 +108,7 @@ export function ManagerLayout({
             <div className="flex items-center gap-2">
               {right}
               <button
-                onClick={handleSignOut}
+                onClick={() => setShowLogoutConfirm(true)}
                 className="bp-tap flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:bg-destructive-soft hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
                 aria-label="Sign out"
               >
@@ -159,6 +161,17 @@ export function ManagerLayout({
           })}
         </div>
       </nav>
+
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        onOpenChange={setShowLogoutConfirm}
+        title="Weet u zeker dat u wilt uitloggen?"
+        description="U wordt doorgestuurd naar de inlogpagina."
+        confirmLabel="Uitloggen"
+        variant="destructive"
+        icon={LogOut}
+        onConfirm={handleSignOut}
+      />
     </div>
   );
 }

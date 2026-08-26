@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
 import { ManagerLayout } from "@/components/manager-layout";
 import {
-  StatusChip,
   MetricCard,
   Card,
   SectionLabel,
@@ -21,11 +20,9 @@ import {
   Check,
   LogIn,
   LogOut,
-  Sparkles,
-  ChevronDown,
   Save,
   Loader2,
-  AlertTriangle,
+  Calendar,
 } from "lucide-react";
 
 export const Route = createFileRoute("/pitch/$id")({
@@ -48,11 +45,17 @@ function PitchDetail() {
   const [power, setPower] = useState(false);
   const [amps, setAmps] = useState<number[]>([6, 8, 10, 12, 16]);
   const [maxAmp, setMaxAmp] = useState(10);
+  const [freeOptions, setFreeOptions] = useState<number[]>([0, 1, 2, 4, 8]);
+  const [freeUsage, setFreeUsage] = useState(0);
+  const [afstand, setAfstand] = useState(0);
   const [confirm, setConfirm] = useState<null | "checkout" | "checkin" | "save">(null);
   const [saving, setSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   const initialPower = useRef(false);
   const initialMaxAmp = useRef(10);
+  const initialFreeUsage = useRef(0);
+  const initialAfstand = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,14 +70,22 @@ function PitchDetail() {
           const ampOptions = settingsData.stroominstelling.map(Number).filter((n) => !isNaN(n));
           setAmps(ampOptions.length > 0 ? ampOptions : [6, 8, 10, 12, 16]);
 
+          const freeOpts = settingsData.vrijverbruikinstelling.map(Number).filter((n) => !isNaN(n));
+          setFreeOptions(freeOpts.length > 0 ? freeOpts : [0, 1, 2, 4, 8]);
+
           const pitchId = parseInt(id.replace(/\D/g, ""), 10);
           const found = pitchData.pitches.find((p) => p.pitchId === pitchId);
           if (found) {
             setPitch(found);
             setPower(found.gewenst === 1);
             setMaxAmp(found.maxAmperage || 10);
+            setFreeUsage(found.freeUsage || 0);
+            setAfstand(found.afstandbesturing ?? 0);
             initialPower.current = found.gewenst === 1;
             initialMaxAmp.current = found.maxAmperage || 10;
+            initialFreeUsage.current = found.freeUsage || 0;
+            initialAfstand.current = found.afstandbesturing ?? 0;
+            setHasChanges(false);
           }
           setLoading(false);
         }
@@ -125,7 +136,6 @@ function PitchDetail() {
   return (
     <ManagerLayout
       title={pitch.veldNaam ? `${pitch.veldNaam} ${pitch.pitchName}` : pitch.pitchName}
-      subtitle={`Plaats #${pitch.pitchId}`}
       right={
         <Link
           to="/dashboard"
@@ -152,31 +162,51 @@ function PitchDetail() {
           </>
         ) : (
           <>
-            <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <StatusChip status={pitch.gewenst === 1 ? "on" : "off"} size="sm" />
-              <span className="text-[12px] text-muted-foreground">
-                {pitch.gewenst === 1 ? "Aan" : "Uit"} · Max {maxAmp}A
-              </span>
-            </div>
-
             <Card className="mt-1.5 overflow-hidden">
               <SwitchRow
                 icon={Power}
                 label="Elektriciteit"
                 description={power ? "Stopcontact is ingeschakeld" : "Stopcontact is uit"}
                 checked={power}
-                onCheckedChange={setPower}
+                onCheckedChange={(v) => { setPower(v); setHasChanges(v !== initialPower.current || maxAmp !== initialMaxAmp.current || freeUsage !== initialFreeUsage.current || afstand !== initialAfstand.current); }}
                 iconBg={power ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"}
               />
               <div className="border-t border-border px-3 py-1.5">
                 <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Afstandbesturing
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {([
+                    { value: 0, label: 'Lokaal' },
+                    { value: 1, label: 'Afstand' },
+                    { value: 3, label: 'Afstand aan' },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setAfstand(opt.value);
+                        setHasChanges(power !== initialPower.current || maxAmp !== initialMaxAmp.current || freeUsage !== initialFreeUsage.current || opt.value !== initialAfstand.current);
+                      }}
+                      className={`bp-tap flex h-9 items-center justify-center rounded-lg border px-3 text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        afstand === opt.value
+                          ? "border-primary bg-primary text-primary-foreground shadow-glow"
+                          : "border-border bg-card text-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="border-t border-border px-3 py-1.5">
+                <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Maximale stroom
                 </div>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="flex flex-wrap gap-1.5">
                   {amps.map((a) => (
                     <button
                       key={a}
-                      onClick={() => setMaxAmp(a)}
+                      onClick={() => { setMaxAmp(a); setHasChanges(power !== initialPower.current || a !== initialMaxAmp.current || freeUsage !== initialFreeUsage.current || afstand !== initialAfstand.current); }}
                       className={`bp-tap flex h-9 flex-col items-center justify-center rounded-lg border text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         maxAmp === a
                           ? "border-primary bg-primary text-primary-foreground shadow-glow"
@@ -190,6 +220,33 @@ function PitchDetail() {
                         }`}
                       >
                         Amp
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="border-t border-border px-3 py-1.5">
+                <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Gratis verbruik
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {freeOptions.map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => { setFreeUsage(f); setHasChanges(power !== initialPower.current || maxAmp !== initialMaxAmp.current || f !== initialFreeUsage.current || afstand !== initialAfstand.current); }}
+                      className={`bp-tap flex h-9 flex-col items-center justify-center rounded-lg border text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        freeUsage === f
+                          ? "border-primary bg-primary text-primary-foreground shadow-glow"
+                          : "border-border bg-card text-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      <span className="tabular-nums leading-none">{f}</span>
+                      <span
+                        className={`text-[9.5px] font-medium leading-none mt-0.5 ${
+                          freeUsage === f ? "text-primary-foreground/85" : "text-muted-foreground"
+                        }`}
+                      >
+                        kWh
                       </span>
                     </button>
                   ))}
@@ -213,6 +270,45 @@ function PitchDetail() {
                 icon={Gauge}
               />
             </div>
+
+            <SectionLabel>Reservering</SectionLabel>
+            {pitch.reservation ? (
+              <Card className="overflow-hidden">
+                <div className="divide-y divide-border">
+                  <div className="flex items-center justify-between px-3 py-2.5">
+                    <span className="text-[12px] text-muted-foreground">Check-in</span>
+                    <span className="text-[13px] font-medium tabular-nums">
+                      {new Date(pitch.reservation.checkIn).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  {pitch.reservation.reserveringNummer && (
+                    <div className="flex items-center justify-between px-3 py-2.5">
+                      <span className="text-[12px] text-muted-foreground">Reserveringsnr.</span>
+                      <span className="text-[13px] font-medium">{pitch.reservation.reserveringNummer}</span>
+                    </div>
+                  )}
+                  {pitch.reservation.usageLimit != null && (
+                    <div className="flex items-center justify-between px-3 py-2.5">
+                      <span className="text-[12px] text-muted-foreground">Verbruikslimiet</span>
+                      <span className="text-[13px] font-medium tabular-nums">{pitch.reservation.usageLimit} kWh</span>
+                    </div>
+                  )}
+                  {pitch.reservation.eStart != null && (
+                    <div className="flex items-center justify-between px-3 py-2.5">
+                      <span className="text-[12px] text-muted-foreground">Meterstand start</span>
+                      <span className="text-[13px] font-medium tabular-nums">{pitch.reservation.eStart} kWh</span>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            ) : (
+              <Card className="overflow-hidden">
+                <div className="flex items-center gap-2.5 px-3 py-3 text-[13px] text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  Geen actieve reservering
+                </div>
+              </Card>
+            )}
           </>
         )}
       </div>
@@ -232,7 +328,12 @@ function PitchDetail() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setConfirm("save")}
-                className="bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl bg-primary text-[13.5px] font-semibold text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                disabled={!hasChanges}
+                className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[13.5px] font-semibold shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  hasChanges
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                }`}
               >
                 <Save className="h-4 w-4" /> Opslaan
               </button>
@@ -274,7 +375,18 @@ function PitchDetail() {
             if (maxAmp !== initialMaxAmp.current) {
               await triggerSync({ pitchId: pitch.pitchId, action: "set_amperage", value: maxAmp });
             }
-            navigate({ to: "/dashboard" });
+            if (freeUsage !== initialFreeUsage.current) {
+              await triggerSync({ pitchId: pitch.pitchId, action: "set_free_usage", value: freeUsage });
+            }
+            if (afstand !== initialAfstand.current) {
+              await triggerSync({ pitchId: pitch.pitchId, action: "set_afstandbesturing", value: afstand });
+            }
+            initialPower.current = power;
+            initialMaxAmp.current = maxAmp;
+            initialFreeUsage.current = freeUsage;
+            initialAfstand.current = afstand;
+            setHasChanges(false);
+            setSaving(false);
           } catch (err) {
             console.error("Sync mislukt:", err);
             setSaving(false);
