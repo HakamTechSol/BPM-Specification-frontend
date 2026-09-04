@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
 import { ManagerLayout } from "@/components/manager-layout";
 import {
-  MetricCard,
   Card,
   SectionLabel,
   ConfirmDialog,
@@ -15,8 +14,6 @@ import {
   ChevronLeft,
   Power,
   Zap,
-  Activity,
-  Gauge,
   Check,
   LogIn,
   LogOut,
@@ -255,21 +252,35 @@ function PitchDetail() {
             </Card>
 
             <SectionLabel>Verbruik</SectionLabel>
-            <div className="grid grid-cols-2 gap-2 lg:gap-3">
-              <MetricCard
-                label="Vandaag"
-                value="--"
-                unit="kWh"
-                icon={Activity}
-                tone="primary"
-              />
-              <MetricCard
-                label="Totaal"
-                value="--"
-                unit="kWh"
-                icon={Gauge}
-              />
-            </div>
+            <Card className="overflow-hidden">
+              <div className="px-3 py-3">
+                <div className="text-[28px] font-bold tabular-nums">
+                  {Number(pitch.kwhnu).toFixed(2)} <span className="text-[14px] font-medium text-muted-foreground">kWh</span>
+                </div>
+
+                {pitch.reservation && (
+                  <div className="mt-1 flex items-center gap-3 text-[13px] text-muted-foreground">
+                    {pitch.reservation.eStart != null && (
+                      <span className="tabular-nums">{Number(pitch.reservation.eStart).toFixed(2)} kWh</span>
+                    )}
+                    <span>
+                      {new Date(pitch.reservation.checkIn).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                )}
+
+                {pitch.reservation && <div className="my-2 border-t border-border" />}
+
+                {pitch.reservation && pitch.reservation.eStart != null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] text-muted-foreground">Gebruikt</span>
+                    <span className="text-[14px] font-semibold tabular-nums">
+                      {(Number(pitch.kwhnu) - Number(pitch.reservation.eStart)).toFixed(2)} kWh
+                    </span>
+                  </div>
+                )}
+              </div>
+            </Card>
 
             <SectionLabel>Reservering</SectionLabel>
             {pitch.reservation ? (

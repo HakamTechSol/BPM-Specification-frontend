@@ -3,11 +3,10 @@ import { useEffect, useState } from "react";
 import { getGuestPitchStatus, resolveHash, resetPitchError, type GuestPitchStatus } from "@/lib/api";
 import {
   StatusIcon,
-  MetricCard,
   Card,
   EmptyState,
 } from "@/components/bp";
-import { Zap, Activity, Gauge, TreePine, RefreshCw, Loader2, AlertTriangle, CheckCircle, Calendar } from "lucide-react";
+import { Zap, TreePine, RefreshCw, Loader2, AlertTriangle, CheckCircle, Calendar } from "lucide-react";
 
 export const Route = createFileRoute("/guest/$id")({
   component: GuestScreen,
@@ -226,21 +225,35 @@ function GuestScreen() {
           </div>
         </Card>
 
-        <div className="grid grid-cols-2 gap-3">
-          <MetricCard
-            label="Vandaag"
-            value={kwhnu.toFixed(2)}
-            unit="kWh"
-            icon={Activity}
-            tone="primary"
-          />
-          <MetricCard
-            label="Totaal"
-            value={kwhtot.toFixed(2)}
-            unit="kWh"
-            icon={Gauge}
-          />
-        </div>
+        <Card className="overflow-hidden">
+          <div className="px-3 py-3">
+            <div className="text-[28px] font-bold tabular-nums">
+              {Number(kwhnu).toFixed(2)} <span className="text-[14px] font-medium text-muted-foreground">kWh</span>
+            </div>
+
+            {status.reservation && (
+              <div className="mt-1 flex items-center gap-3 text-[13px] text-muted-foreground">
+                {status.reservation.eStart != null && (
+                  <span className="tabular-nums">{Number(status.reservation.eStart).toFixed(2)} kWh</span>
+                )}
+                <span>
+                  {new Date(status.reservation.checkIn).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            )}
+
+            {status.reservation && <div className="my-2 border-t border-border" />}
+
+            {status.reservation && status.reservation.eStart != null && (
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-muted-foreground">Gebruikt</span>
+                <span className="text-[14px] font-semibold tabular-nums">
+                  {(Number(kwhnu) - Number(status.reservation.eStart)).toFixed(2)} kWh
+                </span>
+              </div>
+            )}
+          </div>
+        </Card>
 
         {status.reservation ? (
           <Card className="overflow-hidden">
