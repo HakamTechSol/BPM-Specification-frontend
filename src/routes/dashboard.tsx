@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ManagerLayout } from "@/components/manager-layout";
 import { EmptyState, ErrorState } from "@/components/bp";
 import { PitchCard, PitchCardSkeleton } from "@/components/pitch-card";
@@ -29,6 +29,8 @@ const filterMap: Record<FilterLabel, "All" | "On" | "Off"> = {
   Uit: "Off",
 };
 
+const SCROLL_KEY = "blueplug-dashboard-scroll";
+
 function Dashboard() {
   const [filter, setFilter] = useState<FilterLabel>("Alles");
   const [pitches, setPitches] = useState<PitchSummary[]>([]);
@@ -54,6 +56,46 @@ function Dashboard() {
     load();
     return () => { cancelled = true; };
   }, []);
+
+  // Save scroll position while scrolling and when leaving the dashboard
+  useEffect(() => {
+    const saveScroll = () => {
+      if (window.scrollY > 0) {
+        sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
+      }
+    };
+    window.addEventListener("scroll", saveScroll, { passive: true });
+    return () => {
+      saveScroll();
+      window.removeEventListener("scroll", saveScroll);
+    };
+  }, []);
+
+  // Restore scroll position only after the real content has rendered
+  // (waiting for loading:false avoids the skeleton->content layout shift).
+  // Re-applies for a few frames so a late layout change or the router's
+  // own scroll handling can't knock the position back to the top.
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (loading || error || restoredRef.current) return;
+    const saved = sessionStorage.getItem(SCROLL_KEY);
+    if (!saved) return;
+    const y = parseInt(saved, 10);
+    sessionStorage.removeItem(SCROLL_KEY);
+    if (isNaN(y) || y <= 0) return;
+    restoredRef.current = true;
+
+    let frame = 0;
+    const apply = () => {
+      window.scrollTo(0, y);
+      if (frame < 10 && window.scrollY !== y) {
+        frame += 1;
+        requestAnimationFrame(apply);
+      }
+    };
+    apply();
+    window.setTimeout(() => window.scrollTo(0, y), 250);
+  }, [loading, error]);
 
   const stats = useMemo(() => {
     const on = pitches.filter((p) => p.gewenst === 1).length;

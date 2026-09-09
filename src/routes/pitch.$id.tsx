@@ -199,12 +199,12 @@ function PitchDetail() {
                 <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Maximale stroom
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {amps.map((a) => (
                     <button
                       key={a}
                       onClick={() => { setMaxAmp(a); setHasChanges(power !== initialPower.current || a !== initialMaxAmp.current || freeUsage !== initialFreeUsage.current || afstand !== initialAfstand.current); }}
-                      className={`bp-tap flex h-9 flex-col items-center justify-center rounded-lg border text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      className={`bp-tap flex h-12 flex-col items-center justify-center rounded-lg border px-3 text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         maxAmp === a
                           ? "border-primary bg-primary text-primary-foreground shadow-glow"
                           : "border-border bg-card text-foreground hover:border-primary/40"
@@ -212,7 +212,7 @@ function PitchDetail() {
                     >
                       <span className="tabular-nums leading-none">{a}</span>
                       <span
-                        className={`text-[9.5px] font-medium leading-none mt-0.5 ${
+                        className={`text-[11px] font-medium leading-none mt-0.5 ${
                           maxAmp === a ? "text-primary-foreground/85" : "text-muted-foreground"
                         }`}
                       >
@@ -226,12 +226,12 @@ function PitchDetail() {
                 <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Gratis verbruik
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {freeOptions.map((f) => (
                     <button
                       key={f}
                       onClick={() => { setFreeUsage(f); setHasChanges(power !== initialPower.current || maxAmp !== initialMaxAmp.current || f !== initialFreeUsage.current || afstand !== initialAfstand.current); }}
-                      className={`bp-tap flex h-9 flex-col items-center justify-center rounded-lg border text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      className={`bp-tap flex h-12 flex-col items-center justify-center rounded-lg border px-3 text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         freeUsage === f
                           ? "border-primary bg-primary text-primary-foreground shadow-glow"
                           : "border-border bg-card text-foreground hover:border-primary/40"
@@ -239,7 +239,7 @@ function PitchDetail() {
                     >
                       <span className="tabular-nums leading-none">{f}</span>
                       <span
-                        className={`text-[9.5px] font-medium leading-none mt-0.5 ${
+                        className={`text-[11px] font-medium leading-none mt-0.5 ${
                           freeUsage === f ? "text-primary-foreground/85" : "text-muted-foreground"
                         }`}
                       >
@@ -253,28 +253,32 @@ function PitchDetail() {
 
             <SectionLabel>Verbruik</SectionLabel>
             <Card className="overflow-hidden">
-              <div className="px-3 py-3">
-                <div className="text-[28px] font-bold tabular-nums">
-                  {Number(pitch.kwhnu).toFixed(2)} <span className="text-[14px] font-medium text-muted-foreground">kWh</span>
+              <div className="divide-y divide-border">
+                <div className="px-3 py-3">
+                  <div className="mb-1 text-[12px] text-muted-foreground">Huidig verbruik</div>
+                  <div className="text-[28px] font-bold tabular-nums">
+                    {Number(pitch.kwhnu).toFixed(2)} <span className="text-[14px] font-medium text-muted-foreground">kWh</span>
+                  </div>
                 </div>
 
-                {pitch.reservation && (
-                  <div className="mt-1 flex items-center gap-3 text-[13px] text-muted-foreground">
-                    {pitch.reservation.eStart != null && (
-                      <span className="tabular-nums">{Number(pitch.reservation.eStart).toFixed(2)} kWh</span>
-                    )}
-                    <span>
-                      {new Date(pitch.reservation.checkIn).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {pitch.reservation && pitch.reservation.eStart != null && (
+                  <div className="flex items-center justify-between px-3 py-2.5">
+                    <div>
+                      <div className="text-[12px] text-muted-foreground">Meterstand bij start</div>
+                      <div className="text-[11px] text-muted-foreground/70">
+                        {new Date(pitch.reservation.checkIn).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    <span className="text-[13px] font-medium tabular-nums">
+                      {Number(pitch.reservation.eStart).toFixed(2)} kWh
                     </span>
                   </div>
                 )}
 
-                {pitch.reservation && <div className="my-2 border-t border-border" />}
-
                 {pitch.reservation && pitch.reservation.eStart != null && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] text-muted-foreground">Gebruikt</span>
-                    <span className="text-[14px] font-semibold tabular-nums">
+                  <div className="flex items-center justify-between px-3 py-2.5">
+                    <span className="text-[12px] text-muted-foreground">Verbruik deze sessie</span>
+                    <span className="text-[13px] font-semibold tabular-nums text-success">
                       {(Number(pitch.kwhnu) - Number(pitch.reservation.eStart)).toFixed(2)} kWh
                     </span>
                   </div>
@@ -439,7 +443,21 @@ function PitchDetail() {
           setSaving(true);
           try {
             await triggerSync({ pitchId: pitch.pitchId, action: "set_power_state", value: 1 });
-            navigate({ to: "/dashboard" });
+            const updated = await getAllPitches();
+            const refreshed = updated.pitches.find((p) => p.pitchId === pitch.pitchId);
+            if (refreshed) {
+              setPitch(refreshed);
+              setPower(refreshed.gewenst === 1);
+              setMaxAmp(refreshed.maxAmperage || 10);
+              setFreeUsage(refreshed.freeUsage || 0);
+              setAfstand(refreshed.afstandbesturing ?? 0);
+              initialPower.current = refreshed.gewenst === 1;
+              initialMaxAmp.current = refreshed.maxAmperage || 10;
+              initialFreeUsage.current = refreshed.freeUsage || 0;
+              initialAfstand.current = refreshed.afstandbesturing ?? 0;
+            }
+            setHasChanges(false);
+            setSaving(false);
           } catch (err) {
             console.error("Checkin mislukt:", err);
             setSaving(false);
