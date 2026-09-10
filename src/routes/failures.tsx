@@ -194,7 +194,7 @@ function FailurePage() {
           {active.length > 0 && (
             <button
               onClick={() => setResolveAllOpen(true)}
-              className="bp-tap flex h-9 items-center gap-1.5 rounded-lg bg-destructive px-3 text-[13px] font-semibold text-destructive-foreground hover:bg-destructive/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="bp-tap hidden h-9 items-center gap-1.5 rounded-lg bg-destructive px-3 text-[13px] font-semibold text-destructive-foreground hover:bg-destructive/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
             >
               <CheckCircle2 className="h-3.5 w-3.5" /> Alles oplossen
             </button>
@@ -203,6 +203,16 @@ function FailurePage() {
         </div>
       }
     >
+      {/* Mobile-only resolve-all action (keeps header title un-truncated at 360px) */}
+      {active.length > 0 && (
+        <button
+          onClick={() => setResolveAllOpen(true)}
+          className="bp-tap -mt-1 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-destructive px-3 text-[13.5px] font-semibold text-destructive-foreground hover:bg-destructive/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden"
+        >
+          <CheckCircle2 className="h-4 w-4" /> Alles oplossen
+        </button>
+      )}
+
       {/* Severity counts */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {(["critical", "high", "warning"] as const).map((s) => {

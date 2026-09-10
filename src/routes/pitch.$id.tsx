@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
 import { ManagerLayout } from "@/components/manager-layout";
 import {
@@ -35,7 +35,6 @@ export const Route = createFileRoute("/pitch/$id")({
 
 function PitchDetail() {
   const { id } = Route.useParams();
-  const navigate = useNavigate();
   const [pitch, setPitch] = useState<PitchSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -422,7 +421,21 @@ function PitchDetail() {
           setSaving(true);
           try {
             await triggerSync({ pitchId: pitch.pitchId, action: "set_power_state", value: 0 });
-            navigate({ to: "/dashboard" });
+            const updated = await getAllPitches();
+            const refreshed = updated.pitches.find((p) => p.pitchId === pitch.pitchId);
+            if (refreshed) {
+              setPitch(refreshed);
+              setPower(refreshed.gewenst === 1);
+              setMaxAmp(refreshed.maxAmperage || 10);
+              setFreeUsage(refreshed.freeUsage || 0);
+              setAfstand(refreshed.afstandbesturing ?? 0);
+              initialPower.current = refreshed.gewenst === 1;
+              initialMaxAmp.current = refreshed.maxAmperage || 10;
+              initialFreeUsage.current = refreshed.freeUsage || 0;
+              initialAfstand.current = refreshed.afstandbesturing ?? 0;
+            }
+            setHasChanges(false);
+            setSaving(false);
           } catch (err) {
             console.error("Checkout mislukt:", err);
             setSaving(false);
