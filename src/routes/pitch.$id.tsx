@@ -254,9 +254,9 @@ function PitchDetail() {
             <Card className="overflow-hidden">
               <div className="divide-y divide-border">
                 <div className="px-3 py-3">
-                  <div className="mb-1 text-[12px] text-muted-foreground">Huidig verbruik</div>
+                  <div className="mb-1 text-[12px] text-muted-foreground">Meterstand totaal</div>
                   <div className="text-[28px] font-bold tabular-nums">
-                    {Number(pitch.kwhnu).toFixed(2)} <span className="text-[14px] font-medium text-muted-foreground">kWh</span>
+                    {Number(pitch.kwhtot).toFixed(2)} <span className="text-[14px] font-medium text-muted-foreground">kWh</span>
                   </div>
                 </div>
 
@@ -276,9 +276,9 @@ function PitchDetail() {
 
                 {pitch.reservation && pitch.reservation.eStart != null && (
                   <div className="flex items-center justify-between px-3 py-2.5">
-                    <span className="text-[12px] text-muted-foreground">Verbruik deze sessie</span>
+                    <span className="text-[12px] text-muted-foreground">Verbruikt</span>
                     <span className="text-[13px] font-semibold tabular-nums text-success">
-                      {(Number(pitch.kwhnu) - Number(pitch.reservation.eStart)).toFixed(2)} kWh
+                      {(Math.max(0, Number(pitch.kwhtot) - Number(pitch.reservation.eStart))).toFixed(2)} kWh
                     </span>
                   </div>
                 )}

@@ -148,7 +148,7 @@ function GuestScreen() {
     );
   }
 
-  const { pitchName, veldNaam, gewenst, maxAmperage, kwhnu, kwhtot, iverb, errorcode } = status;
+  const { pitchName, veldNaam, gewenst, maxAmperage, kwhtot, iverb, errorcode } = status;
   const powerOn = gewenst === 1;
   const timeSinceUpdate = Math.floor((Date.now() - lastUpdated.getTime()) / 1000);
   const canReset = errorcode === 1 && resetCooldown === 0;
@@ -226,29 +226,33 @@ function GuestScreen() {
         </Card>
 
         <Card className="overflow-hidden">
-          <div className="px-3 py-3">
-            <div className="text-[28px] font-bold tabular-nums">
-              {Number(kwhnu).toFixed(2)} <span className="text-[14px] font-medium text-muted-foreground">kWh</span>
+          <div className="divide-y divide-border">
+            <div className="px-3 py-3">
+              <div className="mb-1 text-[12px] text-muted-foreground">Meterstand totaal</div>
+              <div className="text-[28px] font-bold tabular-nums">
+                {Number(kwhtot).toFixed(2)} <span className="text-[14px] font-medium text-muted-foreground">kWh</span>
+              </div>
             </div>
 
-            {status.reservation && (
-              <div className="mt-1 flex items-center gap-3 text-[13px] text-muted-foreground">
-                {status.reservation.eStart != null && (
-                  <span className="tabular-nums">{Number(status.reservation.eStart).toFixed(2)} kWh</span>
-                )}
-                <span>
-                  {new Date(status.reservation.checkIn).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            {status.reservation && status.reservation.eStart != null && (
+              <div className="flex items-center justify-between px-3 py-2.5">
+                <div>
+                  <div className="text-[12px] text-muted-foreground">Meterstand bij start</div>
+                  <div className="text-[11px] text-muted-foreground/70">
+                    {new Date(status.reservation.checkIn).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+                <span className="text-[13px] font-medium tabular-nums">
+                  {Number(status.reservation.eStart).toFixed(2)} kWh
                 </span>
               </div>
             )}
 
-            {status.reservation && <div className="my-2 border-t border-border" />}
-
             {status.reservation && status.reservation.eStart != null && (
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] text-muted-foreground">Gebruikt</span>
-                <span className="text-[14px] font-semibold tabular-nums">
-                  {(Number(kwhnu) - Number(status.reservation.eStart)).toFixed(2)} kWh
+              <div className="flex items-center justify-between px-3 py-2.5">
+                <span className="text-[12px] text-muted-foreground">Verbruikt</span>
+                <span className="text-[13px] font-semibold tabular-nums text-success">
+                  {(Math.max(0, Number(kwhtot) - Number(status.reservation.eStart))).toFixed(2)} kWh
                 </span>
               </div>
             )}
