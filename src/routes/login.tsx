@@ -33,6 +33,7 @@ function LoginPage() {
     try {
       const res = await login(email, password, remember);
       setToken(res.token);
+    
       navigate({ to: "/dashboard" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login mislukt");
@@ -145,10 +146,6 @@ function LoginPage() {
             )}
           </button>
         </form>
-
-        <p className="mt-auto pt-8 text-center text-[12px] text-muted-foreground">
-          Gast? Scan de QR-code op uw plaats — geen login nodig.
-        </p>
       </div>
     </div>
   );

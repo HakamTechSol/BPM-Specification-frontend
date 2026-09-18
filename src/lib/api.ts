@@ -175,7 +175,12 @@ export function getSettings(): Promise<ManagerSettings> {
   return request('/api/settings', {}, true);
 }
 
-export function updateSettings(payload: { eigenaar?: Partial<Eigenaar>; sessionDurationDays?: number }): Promise<{ success: boolean }> {
+export function updateSettings(payload: {
+  eigenaar?: Partial<Eigenaar>;
+  sessionDurationDays?: number;
+  stroominstelling?: string[];
+  vrijverbruikinstelling?: string[];
+}): Promise<{ success: boolean }> {
   return request('/api/settings', {
     method: 'PUT',
     body: JSON.stringify(payload),
@@ -198,9 +203,16 @@ export interface FailureRecord {
   severity: 'critical' | 'high' | 'warning';
 }
 
+export interface FailureSeverityCounts {
+  critical: number;
+  high: number;
+  warning: number;
+}
+
 export interface FailuresResponse {
   failures: FailureRecord[];
   activeCount: number;
+  activeCounts: FailureSeverityCounts;
   recentResolvedCount: number;
   totalHistoricalCount: number;
 }

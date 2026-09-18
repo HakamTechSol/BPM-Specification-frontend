@@ -8,6 +8,7 @@ import {
   resolveFailure,
   resolveAllFailures,
   type FailureRecord,
+  type FailureSeverityCounts,
 } from "@/lib/api";
 import {
   AlertTriangle,
@@ -92,11 +93,22 @@ function FailurePage() {
   const [resolveAllOpen, setResolveAllOpen] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [totalHistoricalCount, setTotalHistoricalCount] = useState(0);
+  const [counts, setCounts] = useState<FailureSeverityCounts>({ critical: 0, high: 0, warning: 0 });
 
   async function fetchFailures() {
     try {
       const data = await getFailures();
       setFailures(data.failures);
+      // Counter badges come from the backend and count ACTIVE failures only
+      // (filtered by pltsnr < 1000), so they always match the list below.
+      const activeList = data.failures.filter((f) => f.resolvedAt === null);
+      setCounts(
+        data.activeCounts ?? {
+          critical: activeList.filter((f) => f.severity === "critical").length,
+          high: activeList.filter((f) => f.severity === "high").length,
+          warning: activeList.filter((f) => f.severity === "warning").length,
+        },
+      );
       setTotalHistoricalCount(data.totalHistoricalCount);
       setLoading(false);
     } catch (err) {
@@ -111,12 +123,6 @@ function FailurePage() {
 
   const active = failures.filter((f) => f.resolvedAt === null);
   const resolved = failures.filter((f) => f.resolvedAt !== null);
-
-  const counts = {
-    critical: failures.filter((f) => f.severity === "critical").length,
-    high: failures.filter((f) => f.severity === "high").length,
-    warning: failures.filter((f) => f.severity === "warning").length,
-  };
 
   async function handleResolve() {
     if (resolveId === null) return;

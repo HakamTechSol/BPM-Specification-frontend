@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { ManagerLayout } from "@/components/manager-layout";
 import { Card, SectionLabel, SwitchRow } from "@/components/bp";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -31,6 +31,39 @@ export const Route = createFileRoute("/settings")({
 });
 
 
+const STROOM_OPTIONS = ["6", "8", "10", "12", "16"];
+const VRIJ_OPTIONS = ["0", "1", "2", "4", "8"];
+
+function toggleOption(list: string[], value: string): string[] {
+  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
+
+type SettingsShape = {
+  naam: string;
+  straat: string;
+  nummer: string;
+  postcode: string;
+  plaats: string;
+  land: string;
+  telefoon: string;
+  email: string;
+  website: string;
+  kvk: string;
+  btwNummer: string;
+  sessionDurationDays: number;
+  stroominstelling: string[];
+  vrijverbruikinstelling: string[];
+};
+
+// Stable key for change detection (array order does not matter).
+function settingsKey(s: SettingsShape): string {
+  return JSON.stringify({
+    ...s,
+    stroominstelling: [...s.stroominstelling].sort(),
+    vrijverbruikinstelling: [...s.vrijverbruikinstelling].sort(),
+  });
+}
+
 function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,10 +83,36 @@ function SettingsPage() {
   const [kvk, setKvk] = useState("");
   const [btwNummer, setBtwNummer] = useState("");
   
-  // Settings arrays (read-only)
+  // System-wide option selections (interactive)
   const [stroominstelling, setStroominstelling] = useState<string[]>([]);
   const [vrijverbruikinstelling, setVrijverbruikinstelling] = useState<string[]>([]);
   const [sessionDurationDays, setSessionDurationDays] = useState(30);
+
+  // Dirty tracking: the save button stays disabled until something changes.
+  const initialKeyRef = useRef<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+
+  const shape: SettingsShape = {
+    naam,
+    straat,
+    nummer,
+    postcode,
+    plaats,
+    land,
+    telefoon,
+    email,
+    website,
+    kvk,
+    btwNummer,
+    sessionDurationDays,
+    stroominstelling,
+    vrijverbruikinstelling,
+  };
+
+  useEffect(() => {
+    if (initialKeyRef.current === null) return;
+    setIsDirty(settingsKey(shape) !== initialKeyRef.current);
+  });
 
   useEffect(() => {
     async function loadSettings() {
@@ -74,6 +133,23 @@ function SettingsPage() {
         setStroominstelling(data.stroominstelling || []);
         setVrijverbruikinstelling(data.vrijverbruikinstelling || []);
         setSessionDurationDays(data.sessionDurationDays ?? 30);
+        initialKeyRef.current = settingsKey({
+          naam: e.naam || "",
+          straat: e.straat || "",
+          nummer: e.nummer || "",
+          postcode: e.postcode || "",
+          plaats: e.plaats || "",
+          land: e.land || "",
+          telefoon: e.telefoon || "",
+          email: e.email || "",
+          website: e.website || "",
+          kvk: e.kvk || "",
+          btwNummer: e['btw-nummer'] || "",
+          sessionDurationDays: data.sessionDurationDays ?? 30,
+          stroominstelling: data.stroominstelling || [],
+          vrijverbruikinstelling: data.vrijverbruikinstelling || [],
+        });
+        setIsDirty(false);
         setLoading(false);
       } catch (err) {
         console.error("Failed to load settings:", err);
@@ -82,6 +158,11 @@ function SettingsPage() {
     }
     loadSettings();
   }, []);
+
+  const toggleStroom = (value: string) =>
+    setStroominstelling((prev) => toggleOption(prev, value));
+  const toggleVrij = (value: string) =>
+    setVrijverbruikinstelling((prev) => toggleOption(prev, value));
 
   const handleSave = async () => {
     setSaving(true);
@@ -103,7 +184,11 @@ function SettingsPage() {
           'btw-nummer': btwNummer || undefined,
         },
         sessionDurationDays,
+        stroominstelling,
+        vrijverbruikinstelling,
       });
+      initialKeyRef.current = settingsKey(shape);
+      setIsDirty(false);
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (err) {
@@ -122,7 +207,7 @@ function SettingsPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleSave}
-            disabled={saving || loading}
+            disabled={saving || loading || !isDirty}
             className="bp-tap flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed lg:hidden"
             aria-label="Opslaan"
           >
@@ -308,15 +393,26 @@ function SettingsPage() {
             Beschikbare stroomopties systeembreed
           </div>
           <div className="flex flex-wrap gap-2">
-            {stroominstelling.map((amp) => (
-              <span
-                key={amp}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary-soft px-3 py-1.5 text-[13px] font-semibold text-primary"
-              >
-                <Zap className="h-3.5 w-3.5" />
-                {amp} A
-              </span>
-            ))}
+            {STROOM_OPTIONS.map((amp) => {
+              const selected = stroominstelling.includes(amp);
+              return (
+                <button
+                  key={amp}
+                  type="button"
+                  onClick={() => toggleStroom(amp)}
+                  aria-pressed={selected}
+                  className={`bp-tap inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold ring-1 ring-inset transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    selected
+                      ? "bg-primary-soft text-primary ring-primary/30"
+                      : "bg-card text-muted-foreground ring-border hover:bg-muted"
+                  }`}
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                  {amp} A
+                  {selected && <Check className="h-3.5 w-3.5" />}
+                </button>
+              );
+            })}
           </div>
         </Card>
 
@@ -326,14 +422,25 @@ function SettingsPage() {
             Dagelijkse gratis verbruiksopties (kWh)
           </div>
           <div className="flex flex-wrap gap-2">
-            {vrijverbruikinstelling.map((kwh) => (
-              <span
-                key={kwh}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-1.5 text-[13px] font-semibold text-foreground"
-              >
-                {kwh} kWh
-              </span>
-            ))}
+            {VRIJ_OPTIONS.map((kwh) => {
+              const selected = vrijverbruikinstelling.includes(kwh);
+              return (
+                <button
+                  key={kwh}
+                  type="button"
+                  onClick={() => toggleVrij(kwh)}
+                  aria-pressed={selected}
+                  className={`bp-tap inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold ring-1 ring-inset transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    selected
+                      ? "bg-secondary text-foreground ring-border"
+                      : "bg-card text-muted-foreground ring-border hover:bg-muted"
+                  }`}
+                >
+                  {kwh} kWh
+                  {selected && <Check className="h-3.5 w-3.5" />}
+                </button>
+              );
+            })}
           </div>
         </Card>
 
@@ -391,7 +498,7 @@ function SettingsPage() {
         <div className="mx-auto max-w-4xl w-full">
           <button
             onClick={handleSave}
-            disabled={saving || loading}
+            disabled={saving || loading || !isDirty}
             className="bp-tap flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[15px] font-semibold text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {saving ? "Bezig met opslaan..." : "Opslaan"}

@@ -1,12 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { getGuestPitchStatus, resolveHash, resetPitchError, type GuestPitchStatus } from "@/lib/api";
 import {
-  StatusIcon,
-  Card,
-  EmptyState,
-} from "@/components/bp";
-import { Zap, TreePine, RefreshCw, Loader2, AlertTriangle, CheckCircle, Calendar } from "lucide-react";
+  getGuestPitchStatus,
+  resolveHash,
+  resetPitchError,
+  type GuestPitchStatus,
+} from "@/lib/api";
+import { StatusIcon, Card, EmptyState } from "@/components/bp";
+import {
+  Zap,
+  TreePine,
+  RefreshCw,
+  Loader2,
+  AlertTriangle,
+  CheckCircle,
+  Calendar,
+} from "lucide-react";
 
 export const Route = createFileRoute("/guest/$id")({
   component: GuestScreen,
@@ -58,13 +67,14 @@ function GuestScreen() {
     }
     init();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   useEffect(() => {
     if (pitchId === null) return;
     let cancelled = false;
-    let interval: ReturnType<typeof setInterval>;
 
     async function fetchStatus() {
       try {
@@ -82,7 +92,7 @@ function GuestScreen() {
     }
 
     fetchStatus();
-    interval = setInterval(fetchStatus, 5000);
+    const interval = setInterval(fetchStatus, 5000);
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -139,11 +149,7 @@ function GuestScreen() {
   if (error || !status) {
     return (
       <div className="grid min-h-screen place-items-center bg-background p-6 text-center">
-        <EmptyState
-          icon={Zap}
-          title="Plaats niet gevonden"
-          description="Scan opnieuw de QR-code op uw plaats."
-        />
+        <EmptyState icon={Zap} title="" description="" />
       </div>
     );
   }
@@ -180,7 +186,10 @@ function GuestScreen() {
       <main className="flex-1 space-y-3 px-4 pb-24 pt-4 max-w-md mx-auto w-full overflow-y-auto sm:max-w-lg md:max-w-xl lg:max-w-2xl">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-[22px] font-semibold tracking-tight leading-tight">{veldNaam ? `${veldNaam} ` : ''}{pitchName}</h1>
+            <h1 className="text-[22px] font-semibold tracking-tight leading-tight">
+              {veldNaam ? `${veldNaam} ` : ""}
+              {pitchName}
+            </h1>
           </div>
         </div>
 
@@ -201,16 +210,14 @@ function GuestScreen() {
                   Huidige Stroom
                 </div>
                 <div className="mt-1 text-[20px] font-semibold tabular-nums">
-                  {iverb >= 0 ? `${iverb.toFixed(1)}A` : '—'}
+                  {typeof iverb === "number" && iverb >= 0 ? `${(iverb / 100).toFixed(1)}A` : "—"}
                 </div>
               </div>
               <div className="rounded-xl bg-muted/50 p-2.5">
                 <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                   Max Stroom
                 </div>
-                <div className="mt-1 text-[20px] font-semibold tabular-nums">
-                  {maxAmperage}A
-                </div>
+                <div className="mt-1 text-[20px] font-semibold tabular-nums">{maxAmperage}A</div>
               </div>
             </div>
 
@@ -230,7 +237,8 @@ function GuestScreen() {
             <div className="px-3 py-3">
               <div className="mb-1 text-[12px] text-muted-foreground">Meterstand totaal</div>
               <div className="text-[28px] font-bold tabular-nums">
-                {Number(kwhtot).toFixed(2)} <span className="text-[14px] font-medium text-muted-foreground">kWh</span>
+                {Number(kwhtot).toFixed(2)}{" "}
+                <span className="text-[14px] font-medium text-muted-foreground">kWh</span>
               </div>
             </div>
 
@@ -239,7 +247,13 @@ function GuestScreen() {
                 <div>
                   <div className="text-[12px] text-muted-foreground">Meterstand bij start</div>
                   <div className="text-[11px] text-muted-foreground/70">
-                    {new Date(status.reservation.checkIn).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(status.reservation.checkIn).toLocaleDateString("nl-NL", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </div>
                 </div>
                 <span className="text-[13px] font-medium tabular-nums">
@@ -252,7 +266,7 @@ function GuestScreen() {
               <div className="flex items-center justify-between px-3 py-2.5">
                 <span className="text-[12px] text-muted-foreground">Verbruikt</span>
                 <span className="text-[13px] font-semibold tabular-nums text-success">
-                  {(Math.max(0, Number(kwhtot) - Number(status.reservation.eStart))).toFixed(2)} kWh
+                  {Math.max(0, Number(kwhtot) - Number(status.reservation.eStart)).toFixed(2)} kWh
                 </span>
               </div>
             )}
@@ -266,28 +280,20 @@ function GuestScreen() {
                 <Calendar className="h-3 w-3" /> Reservering
               </div>
               <div className="divide-y divide-border">
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-[12px] text-muted-foreground">Check-in</span>
-                  <span className="text-[13px] font-medium tabular-nums">
-                    {new Date(status.reservation.checkIn).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
                 {status.reservation.reserveringNummer && (
                   <div className="flex items-center justify-between py-2">
                     <span className="text-[12px] text-muted-foreground">Reserveringsnr.</span>
-                    <span className="text-[13px] font-medium">{status.reservation.reserveringNummer}</span>
+                    <span className="text-[13px] font-medium">
+                      {status.reservation.reserveringNummer}
+                    </span>
                   </div>
                 )}
                 {status.reservation.usageLimit != null && (
                   <div className="flex items-center justify-between py-2">
                     <span className="text-[12px] text-muted-foreground">Verbruikslimiet</span>
-                    <span className="text-[13px] font-medium tabular-nums">{status.reservation.usageLimit} kWh</span>
-                  </div>
-                )}
-                {status.reservation.eStart != null && (
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-[12px] text-muted-foreground">Meterstand start</span>
-                    <span className="text-[13px] font-medium tabular-nums">{status.reservation.eStart} kWh</span>
+                    <span className="text-[13px] font-medium tabular-nums">
+                      {status.reservation.usageLimit} kWh
+                    </span>
                   </div>
                 )}
               </div>
@@ -333,9 +339,7 @@ function GuestScreen() {
           {resetSuccess && (
             <div className="flex items-center justify-center gap-2 rounded-2xl bg-success-soft py-4">
               <CheckCircle className="h-5 w-5 text-success" />
-              <span className="text-[15px] font-semibold text-success">
-                Reset gelukt
-              </span>
+              <span className="text-[15px] font-semibold text-success">Reset gelukt</span>
             </div>
           )}
         </div>

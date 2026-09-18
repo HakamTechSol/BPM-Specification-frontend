@@ -32,7 +32,6 @@ export const Route = createFileRoute("/pitch/$id")({
   }),
 });
 
-
 function PitchDetail() {
   const { id } = Route.useParams();
   const [pitch, setPitch] = useState<PitchSummary | null>(null);
@@ -57,10 +56,7 @@ function PitchDetail() {
     let cancelled = false;
     async function load() {
       try {
-        const [pitchData, settingsData] = await Promise.all([
-          getAllPitches(),
-          getSettings(),
-        ]);
+        const [pitchData, settingsData] = await Promise.all([getAllPitches(), getSettings()]);
         if (!cancelled) {
           // Load amperage options from settings
           const ampOptions = settingsData.stroominstelling.map(Number).filter((n) => !isNaN(n));
@@ -93,7 +89,9 @@ function PitchDetail() {
       }
     }
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   if (loading) {
@@ -164,7 +162,15 @@ function PitchDetail() {
                 label="Elektriciteit"
                 description={power ? "Stopcontact is ingeschakeld" : "Stopcontact is uit"}
                 checked={power}
-                onCheckedChange={(v) => { setPower(v); setHasChanges(v !== initialPower.current || maxAmp !== initialMaxAmp.current || freeUsage !== initialFreeUsage.current || afstand !== initialAfstand.current); }}
+                onCheckedChange={(v) => {
+                  setPower(v);
+                  setHasChanges(
+                    v !== initialPower.current ||
+                      maxAmp !== initialMaxAmp.current ||
+                      freeUsage !== initialFreeUsage.current ||
+                      afstand !== initialAfstand.current,
+                  );
+                }}
                 iconBg={power ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"}
               />
               <div className="border-t border-border px-3 py-1.5">
@@ -172,16 +178,21 @@ function PitchDetail() {
                   Afstandbesturing
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {([
-                    { value: 0, label: 'Lokaal' },
-                    { value: 1, label: 'Afstand' },
-                    { value: 3, label: 'Afstand aan' },
-                  ]).map((opt) => (
+                  {[
+                    { value: 0, label: "Lokaal" },
+                    { value: 1, label: "Afstand" },
+                    { value: 3, label: "Afstand aan" },
+                  ].map((opt) => (
                     <button
                       key={opt.value}
                       onClick={() => {
                         setAfstand(opt.value);
-                        setHasChanges(power !== initialPower.current || maxAmp !== initialMaxAmp.current || freeUsage !== initialFreeUsage.current || opt.value !== initialAfstand.current);
+                        setHasChanges(
+                          power !== initialPower.current ||
+                            maxAmp !== initialMaxAmp.current ||
+                            freeUsage !== initialFreeUsage.current ||
+                            opt.value !== initialAfstand.current,
+                        );
                       }}
                       className={`bp-tap flex h-9 items-center justify-center rounded-lg border px-3 text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         afstand === opt.value
@@ -196,13 +207,31 @@ function PitchDetail() {
               </div>
               <div className="border-t border-border px-3 py-1.5">
                 <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Huidige stroom
+                </div>
+                <div className="pb-1 text-[18px] font-semibold tabular-nums">
+                  {typeof pitch.iverb === "number" && pitch.iverb >= 0
+                    ? `${(pitch.iverb / 100).toFixed(2)} A`
+                    : "—"}
+                </div>
+              </div>
+              <div className="border-t border-border px-3 py-1.5">
+                <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Maximale stroom
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {amps.map((a) => (
                     <button
                       key={a}
-                      onClick={() => { setMaxAmp(a); setHasChanges(power !== initialPower.current || a !== initialMaxAmp.current || freeUsage !== initialFreeUsage.current || afstand !== initialAfstand.current); }}
+                      onClick={() => {
+                        setMaxAmp(a);
+                        setHasChanges(
+                          power !== initialPower.current ||
+                            a !== initialMaxAmp.current ||
+                            freeUsage !== initialFreeUsage.current ||
+                            afstand !== initialAfstand.current,
+                        );
+                      }}
                       className={`bp-tap flex h-12 flex-col items-center justify-center rounded-lg border px-3 text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         maxAmp === a
                           ? "border-primary bg-primary text-primary-foreground shadow-glow"
@@ -229,7 +258,15 @@ function PitchDetail() {
                   {freeOptions.map((f) => (
                     <button
                       key={f}
-                      onClick={() => { setFreeUsage(f); setHasChanges(power !== initialPower.current || maxAmp !== initialMaxAmp.current || f !== initialFreeUsage.current || afstand !== initialAfstand.current); }}
+                      onClick={() => {
+                        setFreeUsage(f);
+                        setHasChanges(
+                          power !== initialPower.current ||
+                            maxAmp !== initialMaxAmp.current ||
+                            f !== initialFreeUsage.current ||
+                            afstand !== initialAfstand.current,
+                        );
+                      }}
                       className={`bp-tap flex h-12 flex-col items-center justify-center rounded-lg border px-3 text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         freeUsage === f
                           ? "border-primary bg-primary text-primary-foreground shadow-glow"
@@ -252,35 +289,49 @@ function PitchDetail() {
 
             <SectionLabel>Verbruik</SectionLabel>
             <Card className="overflow-hidden">
-              <div className="divide-y divide-border">
-                <div className="px-3 py-3">
-                  <div className="mb-1 text-[12px] text-muted-foreground">Meterstand totaal</div>
-                  <div className="text-[28px] font-bold tabular-nums">
-                    {Number(pitch.kwhtot).toFixed(2)} <span className="text-[14px] font-medium text-muted-foreground">kWh</span>
-                  </div>
+              <div className="px-3 py-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[13px] text-muted-foreground">Meterstand totaal</span>
+                  <span className="text-[15px] font-semibold tabular-nums">
+                    {Number(pitch.kwhtot).toFixed(2)}{" "}
+                    <span className="text-[11px] font-medium text-muted-foreground">kWh</span>
+                  </span>
                 </div>
 
                 {pitch.reservation && pitch.reservation.eStart != null && (
-                  <div className="flex items-center justify-between px-3 py-2.5">
-                    <div>
-                      <div className="text-[12px] text-muted-foreground">Meterstand bij start</div>
-                      <div className="text-[11px] text-muted-foreground/70">
-                        {new Date(pitch.reservation.checkIn).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </div>
+                  <>
+                    <div className="mt-2 flex items-baseline justify-between gap-3">
+                      <span className="text-[13px] text-muted-foreground">
+                        Meterstand bij start
+                        <span className="ml-1.5 text-[11px] text-muted-foreground/70">
+                          {new Date(pitch.reservation.checkIn).toLocaleDateString("nl-NL", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </span>
+                      <span className="text-[15px] font-semibold tabular-nums">
+                        {Number(pitch.reservation.eStart).toFixed(2)}{" "}
+                        <span className="text-[11px] font-medium text-muted-foreground">kWh</span>
+                      </span>
                     </div>
-                    <span className="text-[13px] font-medium tabular-nums">
-                      {Number(pitch.reservation.eStart).toFixed(2)} kWh
-                    </span>
-                  </div>
-                )}
 
-                {pitch.reservation && pitch.reservation.eStart != null && (
-                  <div className="flex items-center justify-between px-3 py-2.5">
-                    <span className="text-[12px] text-muted-foreground">Verbruikt</span>
-                    <span className="text-[13px] font-semibold tabular-nums text-success">
-                      {(Math.max(0, Number(pitch.kwhtot) - Number(pitch.reservation.eStart))).toFixed(2)} kWh
-                    </span>
-                  </div>
+                    <div className="my-2.5 border-t border-border" />
+
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-[13px] font-semibold">Verbruikt</span>
+                      <span className="text-[16px] font-bold tabular-nums text-success">
+                        {Math.max(
+                          0,
+                          Number(pitch.kwhtot) - Number(pitch.reservation.eStart),
+                        ).toFixed(2)}{" "}
+                        <span className="text-[11px] font-medium">kWh</span>
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
             </Card>
@@ -289,28 +340,25 @@ function PitchDetail() {
             {pitch.reservation ? (
               <Card className="overflow-hidden">
                 <div className="divide-y divide-border">
-                  <div className="flex items-center justify-between px-3 py-2.5">
-                    <span className="text-[12px] text-muted-foreground">Check-in</span>
-                    <span className="text-[13px] font-medium tabular-nums">
-                      {new Date(pitch.reservation.checkIn).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
                   {pitch.reservation.reserveringNummer && (
                     <div className="flex items-center justify-between px-3 py-2.5">
                       <span className="text-[12px] text-muted-foreground">Reserveringsnr.</span>
-                      <span className="text-[13px] font-medium">{pitch.reservation.reserveringNummer}</span>
+                      <span className="text-[13px] font-medium">
+                        {pitch.reservation.reserveringNummer}
+                      </span>
                     </div>
                   )}
                   {pitch.reservation.usageLimit != null && (
                     <div className="flex items-center justify-between px-3 py-2.5">
-                      <span className="text-[12px] text-muted-foreground">Verbruikslimiet</span>
-                      <span className="text-[13px] font-medium tabular-nums">{pitch.reservation.usageLimit} kWh</span>
-                    </div>
-                  )}
-                  {pitch.reservation.eStart != null && (
-                    <div className="flex items-center justify-between px-3 py-2.5">
-                      <span className="text-[12px] text-muted-foreground">Meterstand start</span>
-                      <span className="text-[13px] font-medium tabular-nums">{pitch.reservation.eStart} kWh</span>
+                      <div>
+                        <div className="text-[12px] text-muted-foreground">Verbruikslimiet</div>
+                        <div className="text-[11px] text-muted-foreground/70">
+                          Inbegrepen verbruik tijdens dit verblijf
+                        </div>
+                      </div>
+                      <span className="text-[13px] font-medium tabular-nums">
+                        {pitch.reservation.usageLimit} kWh
+                      </span>
                     </div>
                   )}
                 </div>
@@ -373,7 +421,9 @@ function PitchDetail() {
 
       <ConfirmDialog
         open={confirm === "save"}
-        onOpenChange={(open) => { if (!open) setConfirm(null); }}
+        onOpenChange={(open) => {
+          if (!open) setConfirm(null);
+        }}
         title="Wijzigingen opslaan?"
         description="De instellingen worden direct toegepast."
         confirmLabel="Opslaan"
@@ -390,10 +440,18 @@ function PitchDetail() {
               await triggerSync({ pitchId: pitch.pitchId, action: "set_amperage", value: maxAmp });
             }
             if (freeUsage !== initialFreeUsage.current) {
-              await triggerSync({ pitchId: pitch.pitchId, action: "set_free_usage", value: freeUsage });
+              await triggerSync({
+                pitchId: pitch.pitchId,
+                action: "set_free_usage",
+                value: freeUsage,
+              });
             }
             if (afstand !== initialAfstand.current) {
-              await triggerSync({ pitchId: pitch.pitchId, action: "set_afstandbesturing", value: afstand });
+              await triggerSync({
+                pitchId: pitch.pitchId,
+                action: "set_afstandbesturing",
+                value: afstand,
+              });
             }
             initialPower.current = power;
             initialMaxAmp.current = maxAmp;
@@ -410,7 +468,9 @@ function PitchDetail() {
 
       <ConfirmDialog
         open={confirm === "checkout"}
-        onOpenChange={(open) => { if (!open) setConfirm(null); }}
+        onOpenChange={(open) => {
+          if (!open) setConfirm(null);
+        }}
         title="Gast uitchecken?"
         description="De stroom wordt uitgeschakeld en de sessie wordt beëindigd."
         confirmLabel="Uitchecken"
@@ -445,7 +505,9 @@ function PitchDetail() {
 
       <ConfirmDialog
         open={confirm === "checkin"}
-        onOpenChange={(open) => { if (!open) setConfirm(null); }}
+        onOpenChange={(open) => {
+          if (!open) setConfirm(null);
+        }}
         title="Gast inchecken?"
         description="Er start een nieuwe sessie en de stroom wordt ingeschakeld."
         confirmLabel="Inchecken"

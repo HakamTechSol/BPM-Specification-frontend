@@ -14,7 +14,7 @@ function formatKWh(value: number | undefined | null): string {
 
 function formatAmps(value: number | undefined | null): string {
   if (value === undefined || value === null || value < 0) return '—';
-  return value.toFixed(1) + ' A';
+  return (value / 100).toFixed(2) + ' A';
 }
 
 export function PitchCard({ pitch }: { pitch: PitchSummary }) {

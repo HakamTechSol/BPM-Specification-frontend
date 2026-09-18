@@ -26,13 +26,8 @@ function Splash() {
             </div>
           </div>
           <h1 className="mt-6 text-[34px] font-semibold tracking-tight">BluePlug</h1>
-          <p className="mt-2 max-w-xs text-[14px] leading-relaxed text-muted-foreground">
-            Slimme stroomvoorziening voor moderne campings. Beheer elke plaats of bekijk uw eigen verbruik —
-            vanaf elk apparaat.
-          </p>
           <div className="mt-2 flex items-center gap-2 text-[12px] text-muted-foreground">
-            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-            Verbonden · v2.4.1
+            v2.4.1
           </div>
         </div>
 
@@ -46,7 +41,7 @@ function Splash() {
           </Link>
           <Link
             to="/guest/$id"
-            params={{ id: "A12" }}
+            params={{ id: "A10" }}
             className="bp-tap flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card text-[15px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <QrCode className="h-4 w-4" />

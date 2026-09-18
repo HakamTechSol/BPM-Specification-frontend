@@ -18,10 +18,10 @@ export const Route = createFileRoute("/dashboard")({
   }),
 });
 
-const filters = ["Alles", "Aan", "Uit"] as const;
+const filters = ["Totaal", "Aan", "Uit"] as const;
 type FilterLabel = (typeof filters)[number];
 const filterMap: Record<FilterLabel, "All" | "On" | "Off"> = {
-  Alles: "All",
+  Totaal: "All",
   Aan: "On",
   Uit: "Off",
 };
@@ -65,7 +65,7 @@ function captureVisibleAnchor(): ScrollAnchor | null {
 }
 
 function Dashboard() {
-  const [filter, setFilter] = useState<FilterLabel>("Alles");
+  const [filter, setFilter] = useState<FilterLabel>("Totaal");
 
   const pitchesQuery = useQuery({
     queryKey: ["pitches"],
@@ -121,9 +121,7 @@ function Dashboard() {
     const timers: number[] = [];
 
     const apply = () => {
-      const el = document.querySelector<HTMLElement>(
-        `[data-pitch-id="${anchor.pitchId}"]`
-      );
+      const el = document.querySelector<HTMLElement>(`[data-pitch-id="${anchor.pitchId}"]`);
       if (!el) {
         // card no longer in the (possibly filtered/refetched) list — nothing
         // sane to restore against, stop trying this pass.
@@ -186,9 +184,18 @@ function Dashboard() {
         </div>
       }
     >
-      {/* Stats cards */}
+      {/* Stats cards — click to filter */}
       <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
-        <div className="rounded-2xl border border-border bg-card p-2.5 sm:p-4 shadow-card">
+        <button
+          type="button"
+          onClick={() => setFilter("Aan")}
+          aria-pressed={activeFilter === "On"}
+          className={`rounded-2xl border p-2.5 sm:p-4 text-left shadow-card transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            activeFilter === "On"
+              ? "border-success bg-success-soft ring-2 ring-success/40"
+              : "border-border bg-card hover:border-success/50"
+          }`}
+        >
           <div className="grid h-8 w-8 sm:h-10 sm:w-10 place-items-center rounded-lg sm:rounded-xl bg-success-soft text-success">
             <Zap className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.4} />
           </div>
@@ -196,8 +203,17 @@ function Dashboard() {
             {stats.on}
           </div>
           <div className="text-[12px] sm:text-[14px] font-medium text-muted-foreground">Aan</div>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-2.5 sm:p-4 shadow-card">
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter("Uit")}
+          aria-pressed={activeFilter === "Off"}
+          className={`rounded-2xl border p-2.5 sm:p-4 text-left shadow-card transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            activeFilter === "Off"
+              ? "border-muted bg-muted ring-2 ring-ring/40"
+              : "border-border bg-card hover:border-muted"
+          }`}
+        >
           <div className="grid h-8 w-8 sm:h-10 sm:w-10 place-items-center rounded-lg sm:rounded-xl bg-muted text-muted-foreground">
             <ShieldAlert className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.4} />
           </div>
@@ -205,8 +221,17 @@ function Dashboard() {
             {stats.off}
           </div>
           <div className="text-[12px] sm:text-[14px] font-medium text-muted-foreground">Uit</div>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-2.5 sm:p-4 shadow-card">
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter("Totaal")}
+          aria-pressed={activeFilter === "All"}
+          className={`rounded-2xl border p-2.5 sm:p-4 text-left shadow-card transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            activeFilter === "All"
+              ? "border-primary bg-primary-soft ring-2 ring-primary/40"
+              : "border-border bg-card hover:border-primary"
+          }`}
+        >
           <div className="grid h-8 w-8 sm:h-10 sm:w-10 place-items-center rounded-lg sm:rounded-xl bg-primary-soft text-primary">
             <Activity className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.4} />
           </div>
@@ -214,24 +239,7 @@ function Dashboard() {
             {stats.total}
           </div>
           <div className="text-[12px] sm:text-[14px] font-medium text-muted-foreground">Totaal</div>
-        </div>
-      </div>
-
-      {/* Filter bar */}
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-        <div className="flex items-center gap-1 rounded-xl bg-secondary p-1 shrink-0">
-          {filters.map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`whitespace-nowrap rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-[13px] sm:text-[15px] font-semibold min-h-[36px] sm:min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                filter === f ? "bg-card text-foreground shadow-card" : "text-muted-foreground"
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
+        </button>
       </div>
 
       {/* Pitch grid */}
