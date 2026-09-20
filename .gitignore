@@ -25,6 +25,9 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Local test helpers (never deploy)
+public/afstand-test.html
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -27,6 +27,7 @@ const filterMap: Record<FilterLabel, "All" | "On" | "Off"> = {
 };
 
 const SCROLL_ANCHOR_KEY = "blueplug-dashboard-scroll-anchor";
+const FILTER_KEY = "blueplug-dashboard-filter";
 
 type ScrollAnchor = { pitchId: string; offsetFromTop: number };
 
@@ -48,6 +49,23 @@ function writeAnchor(anchor: ScrollAnchor) {
   sessionStorage.setItem(SCROLL_ANCHOR_KEY, JSON.stringify(anchor));
 }
 
+// The active Aan/Uit/Totaal filter is persisted in sessionStorage so it
+// survives leaving for a pitch detail page and coming back — same mechanism
+// and lifetime as the scroll anchor above.
+function readSavedFilter(): FilterLabel {
+  if (typeof window === "undefined") return "Totaal";
+  const raw = sessionStorage.getItem(FILTER_KEY);
+  return filters.includes(raw as FilterLabel) ? (raw as FilterLabel) : "Totaal";
+}
+
+function saveFilter(filter: FilterLabel) {
+  try {
+    sessionStorage.setItem(FILTER_KEY, filter);
+  } catch {
+    // sessionStorage unavailable (private mode etc.) — filter just won't persist
+  }
+}
+
 // Finds the first pitch card whose bottom edge is still below the top of the
 // viewport (i.e. the topmost card currently in view, even if only partially)
 // and records how far its top edge sits from the viewport top. This is what
@@ -65,7 +83,14 @@ function captureVisibleAnchor(): ScrollAnchor | null {
 }
 
 function Dashboard() {
-  const [filter, setFilter] = useState<FilterLabel>("Totaal");
+  // Restore the previously active filter on mount (like the scroll anchor,
+  // so returning from a pitch page keeps the same list view).
+  const [filter, setFilter] = useState<FilterLabel>(readSavedFilter);
+
+  // Persist the active filter whenever it changes.
+  useEffect(() => {
+    saveFilter(filter);
+  }, [filter]);
 
   const pitchesQuery = useQuery({
     queryKey: ["pitches"],
