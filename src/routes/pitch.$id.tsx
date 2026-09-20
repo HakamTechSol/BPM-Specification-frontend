@@ -13,6 +13,7 @@ import { getAllPitches, triggerSync, getSettings, type PitchSummary } from "@/li
 import {
   ChevronLeft,
   Power,
+  Radio,
   Zap,
   Check,
   LogIn,
@@ -43,6 +44,9 @@ function PitchDetail() {
   const [freeOptions, setFreeOptions] = useState<number[]>([0, 1, 2, 4, 8]);
   const [freeUsage, setFreeUsage] = useState(0);
   const [afstand, setAfstand] = useState(0);
+  // Remote/cloud control active (1 = "Afstand", 3 = "Afstand aan") disables
+  // local controls; 0 = "Lokaal" keeps them enabled.
+  const remoteActive = afstand > 0;
   const [confirm, setConfirm] = useState<null | "checkout" | "checkin" | "save">(null);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -160,7 +164,13 @@ function PitchDetail() {
               <SwitchRow
                 icon={Power}
                 label="Elektriciteit"
-                description={power ? "Stopcontact is ingeschakeld" : "Stopcontact is uit"}
+                description={
+                  remoteActive
+                    ? "Stopcontact wordt beheerd via afstandbediening"
+                    : power
+                      ? "Stopcontact is ingeschakeld"
+                      : "Stopcontact is uit"
+                }
                 checked={power}
                 onCheckedChange={(v) => {
                   setPower(v);
@@ -172,7 +182,14 @@ function PitchDetail() {
                   );
                 }}
                 iconBg={power ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"}
+                disabled={remoteActive}
               />
+              {remoteActive && (
+                <div className="flex items-center gap-2 border-t border-border bg-warning-soft/60 px-3 py-2.5 text-[12px] font-medium text-warning">
+                  <Radio className="h-3.5 w-3.5 shrink-0" />
+                  Beheerd via afstandbediening — lokale bediening uitgeschakeld
+                </div>
+              )}
               <div className="border-t border-border px-3 py-1.5">
                 <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Afstandbesturing
@@ -387,9 +404,10 @@ function PitchDetail() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setConfirm("save")}
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setConfirm("save")}
                 disabled={!hasChanges}
                 className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[13.5px] font-semibold shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   hasChanges
@@ -402,19 +420,36 @@ function PitchDetail() {
               {power ? (
                 <button
                   onClick={() => setConfirm("checkout")}
-                  className="bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-card text-[13.5px] font-semibold text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  disabled={remoteActive}
+                  className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    remoteActive
+                      ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground"
+                      : "border border-border bg-card text-destructive"
+                  }`}
                 >
                   <LogOut className="h-4 w-4" /> Uitchecken
                 </button>
               ) : (
                 <button
                   onClick={() => setConfirm("checkin")}
-                  className="bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl bg-success text-[13.5px] font-semibold text-white shadow-sm hover:bg-success/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  disabled={remoteActive}
+                  className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[13.5px] font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    remoteActive
+                      ? "cursor-not-allowed bg-muted text-muted-foreground"
+                      : "bg-success text-white hover:bg-success/90"
+                  }`}
                 >
                   <LogIn className="h-4 w-4" /> Inchecken
                 </button>
               )}
-            </div>
+              </div>
+              {remoteActive && (
+                <div className="mt-2 flex items-center justify-center gap-1.5 text-center text-[11.5px] font-medium text-warning">
+                  <Radio className="h-3.5 w-3.5 shrink-0" />
+                  Beheerd via afstandbediening — lokale bediening uitgeschakeld
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

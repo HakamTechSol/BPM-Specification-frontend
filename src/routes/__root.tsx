@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useLocation,
   HeadContent,
   Scripts,
   redirect,
@@ -131,25 +132,33 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  
-  // Initialize theme on client side only to prevent hydration mismatch
+  const location = useLocation();
+
+  // Apply the theme on the client side only, to prevent hydration mismatch.
+  // Admin pages use the admin preference (localStorage "theme"); guest pages
+  // (/guest/$id) use their OWN preference (localStorage "guest-theme"), so the
+  // two are fully decoupled and the admin's dark/light choice never leaks into
+  // guest pages (and vice versa).
   useEffect(() => {
-    const stored = localStorage.getItem("theme") as "light" | "dark" | "system" | null;
-    const theme = stored || "system";
-    
+    const isGuest = location.pathname.startsWith("/guest/");
+    const key = isGuest ? "guest-theme" : "theme";
+
+    const stored = localStorage.getItem(key) as "light" | "dark" | "system" | null;
+    let theme: "light" | "dark" | "system" = stored || "system";
+
     const getSystemTheme = (): "light" | "dark" => {
       return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     };
-    
+
     const resolvedTheme = theme === "system" ? getSystemTheme() : theme;
     const root = document.documentElement;
-    
+
     if (resolvedTheme === "dark") {
       root.classList.add("dark");
     } else {
       root.classList.remove("dark");
     }
-  }, []);
+  }, [location.pathname]);
 
   return (
     <QueryClientProvider client={queryClient}>

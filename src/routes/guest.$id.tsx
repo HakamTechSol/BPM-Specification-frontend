@@ -6,7 +6,8 @@ import {
   resetPitchError,
   type GuestPitchStatus,
 } from "@/lib/api";
-import { StatusIcon, Card, EmptyState } from "@/components/bp";
+import { StatusIcon, Card, SectionLabel, EmptyState } from "@/components/bp";
+import { useGuestTheme } from "@/hooks/use-guest-theme";
 import {
   Zap,
   TreePine,
@@ -15,6 +16,8 @@ import {
   AlertTriangle,
   CheckCircle,
   Calendar,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 export const Route = createFileRoute("/guest/$id")({
@@ -36,6 +39,34 @@ async function resolvePitchId(raw: string): Promise<number> {
   if (!isNaN(numeric)) return numeric;
   const result = await resolveHash(raw);
   return result.pitchId;
+}
+
+// Guest-only theme toggle: reads/writes its OWN localStorage key
+// ("guest-theme") via useGuestTheme, never the admin's "theme" key.
+function GuestThemeToggle() {
+  const { isDark, toggleTheme } = useGuestTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={mounted && isDark ? "Schakel naar licht thema" : "Schakel naar donker thema"}
+      className="bp-tap grid h-7 w-7 place-items-center rounded-lg border border-border bg-card text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {mounted && isDark ? (
+        <Sun className="h-3.5 w-3.5" />
+      ) : mounted ? (
+        <Moon className="h-3.5 w-3.5" />
+      ) : (
+        <span className="h-3.5 w-3.5" />
+      )}
+    </button>
+  );
 }
 
 function GuestScreen() {
@@ -175,6 +206,7 @@ function GuestScreen() {
             <TreePine className="h-4 w-4" /> Duinrand Camping
           </div>
           <div className="flex items-center gap-1.5">
+            <GuestThemeToggle />
             <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Zap className="h-3.5 w-3.5" strokeWidth={2.6} />
             </div>
@@ -187,7 +219,7 @@ function GuestScreen() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-[22px] font-semibold tracking-tight leading-tight">
-              {veldNaam ? `${veldNaam} ` : ""}
+              {veldNaam ? `${veldNaam} ` : ""} 
               {pitchName}
             </h1>
           </div>
@@ -210,93 +242,102 @@ function GuestScreen() {
                   Huidige Stroom
                 </div>
                 <div className="mt-1 text-[20px] font-semibold tabular-nums">
-                  {typeof iverb === "number" && iverb >= 0 ? `${(iverb / 100).toFixed(1)}A` : "—"}
+                  {typeof iverb === "number" && iverb >= 0 ? `${(iverb / 100).toFixed(1)} A` : "—"}
                 </div>
               </div>
               <div className="rounded-xl bg-muted/50 p-2.5">
                 <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                   Max Stroom
                 </div>
-                <div className="mt-1 text-[20px] font-semibold tabular-nums">{maxAmperage}A</div>
+                <div className="mt-1 text-[20px] font-semibold tabular-nums">{maxAmperage} A</div>
               </div>
             </div>
 
             <div className="mt-2 flex items-center justify-end text-[11px] text-muted-foreground">
-              <div className="flex items-center gap-1">
+              {/* <div className="flex items-center gap-1">
                 <RefreshCw className="h-3 w-3" />
                 {timeSinceUpdate < 60
                   ? `${timeSinceUpdate}s geleden`
                   : `${Math.floor(timeSinceUpdate / 60)}m geleden`}
-              </div>
+              </div> */}
             </div>
           </div>
         </Card>
 
+        <SectionLabel>Verbruik</SectionLabel>
         <Card className="overflow-hidden">
-          <div className="divide-y divide-border">
-            <div className="px-3 py-3">
-              <div className="mb-1 text-[12px] text-muted-foreground">Meterstand totaal</div>
-              <div className="text-[28px] font-bold tabular-nums">
+          <div className="px-3 py-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-[13px] text-muted-foreground">Meterstand totaal</span>
+              <span className="text-[15px] font-semibold tabular-nums">
                 {Number(kwhtot).toFixed(2)}{" "}
-                <span className="text-[14px] font-medium text-muted-foreground">kWh</span>
-              </div>
+                <span className="text-[11px] font-medium text-muted-foreground">kWh</span>
+              </span>
             </div>
 
             {status.reservation && status.reservation.eStart != null && (
-              <div className="flex items-center justify-between px-3 py-2.5">
-                <div>
-                  <div className="text-[12px] text-muted-foreground">Meterstand bij start</div>
-                  <div className="text-[11px] text-muted-foreground/70">
-                    {new Date(status.reservation.checkIn).toLocaleDateString("nl-NL", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
+              <>
+                <div className="mt-2 flex items-baseline justify-between gap-3">
+                  <span className="text-[13px] text-muted-foreground">
+                    Meterstand bij start
+                    <span className="ml-1.5 text-[11px] text-muted-foreground/70">
+                      {new Date(status.reservation.checkIn).toLocaleDateString("nl-NL", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </span>
+                  <span className="text-[15px] font-semibold tabular-nums">
+                    {Number(status.reservation.eStart).toFixed(2)}{" "}
+                    <span className="text-[11px] font-medium text-muted-foreground">kWh</span>
+                  </span>
                 </div>
-                <span className="text-[13px] font-medium tabular-nums">
-                  {Number(status.reservation.eStart).toFixed(2)} kWh
-                </span>
-              </div>
-            )}
 
-            {status.reservation && status.reservation.eStart != null && (
-              <div className="flex items-center justify-between px-3 py-2.5">
-                <span className="text-[12px] text-muted-foreground">Verbruikt</span>
-                <span className="text-[13px] font-semibold tabular-nums text-success">
-                  {Math.max(0, Number(kwhtot) - Number(status.reservation.eStart)).toFixed(2)} kWh
-                </span>
-              </div>
+                <div className="my-2.5 border-t border-border" />
+
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[13px] font-semibold">Verbruikt</span>
+                  <span className="text-[16px] font-bold tabular-nums text-success">
+                    {Math.max(
+                      0,
+                      Number(kwhtot) - Number(status.reservation.eStart),
+                    ).toFixed(2)}{" "}
+                    <span className="text-[11px] font-medium">kWh</span>
+                  </span>
+                </div>
+              </>
             )}
           </div>
         </Card>
 
+        <SectionLabel>Reservering</SectionLabel>
         {status.reservation ? (
           <Card className="overflow-hidden">
-            <div className="p-3">
-              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <Calendar className="h-3 w-3" /> Reservering
-              </div>
-              <div className="divide-y divide-border">
-                {status.reservation.reserveringNummer && (
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-[12px] text-muted-foreground">Reserveringsnr.</span>
-                    <span className="text-[13px] font-medium">
-                      {status.reservation.reserveringNummer}
-                    </span>
+            <div className="divide-y divide-border">
+              {status.reservation.reserveringNummer && (
+                <div className="flex items-center justify-between px-3 py-2.5">
+                  <span className="text-[12px] text-muted-foreground">Reserveringsnr.</span>
+                  <span className="text-[13px] font-medium">
+                    {status.reservation.reserveringNummer}
+                  </span>
+                </div>
+              )}
+              {status.reservation.usageLimit != null && (
+                <div className="flex items-center justify-between px-3 py-2.5">
+                  <div>
+                    <div className="text-[12px] text-muted-foreground">Verbruikslimiet</div>
+                    <div className="text-[11px] text-muted-foreground/70">
+                      Inbegrepen verbruik tijdens dit verblijf
+                    </div>
                   </div>
-                )}
-                {status.reservation.usageLimit != null && (
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-[12px] text-muted-foreground">Verbruikslimiet</span>
-                    <span className="text-[13px] font-medium tabular-nums">
-                      {status.reservation.usageLimit} kWh
-                    </span>
-                  </div>
-                )}
-              </div>
+                  <span className="text-[13px] font-medium tabular-nums">
+                    {status.reservation.usageLimit} kWh
+                  </span>
+                </div>
+              )}
             </div>
           </Card>
         ) : (

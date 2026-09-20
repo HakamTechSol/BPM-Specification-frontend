@@ -513,6 +513,7 @@ export function SwitchRow({
   checked,
   onCheckedChange,
   iconBg,
+  disabled = false,
 }: {
   icon: typeof Zap;
   label: string;
@@ -520,9 +521,10 @@ export function SwitchRow({
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   iconBg?: string;
+  disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 p-3">
+    <div className={`flex items-center gap-3 p-3 ${disabled ? "opacity-60" : ""}`}>
       <div
         className={`grid h-9 w-9 place-items-center rounded-lg ${iconBg || "bg-primary-soft text-primary"}`}
       >
@@ -535,6 +537,7 @@ export function SwitchRow({
       <Switch
         checked={checked}
         onCheckedChange={onCheckedChange}
+        disabled={disabled}
         className="h-12 w-[60px] [&>span]:h-[34px] [&>span]:w-[34px] [&>span]:data-[state=checked]:translate-x-[24px]"
       />
     </div>

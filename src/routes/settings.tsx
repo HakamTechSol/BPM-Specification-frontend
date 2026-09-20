@@ -18,6 +18,8 @@ import {
   Save,
   Loader2,
   AlertCircle,
+  Plus,
+  X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
@@ -31,11 +33,18 @@ export const Route = createFileRoute("/settings")({
 });
 
 
-const STROOM_OPTIONS = ["6", "8", "10", "12", "16"];
-const VRIJ_OPTIONS = ["0", "1", "2", "4", "8"];
-
-function toggleOption(list: string[], value: string): string[] {
-  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+// Fully custom numeric option lists (any values, including decimals).
+// Keeps the first string representation per numeric value, sorted ascending.
+function normalizeValues(list: string[]): string[] {
+  const seen = new Map<number, string>();
+  for (const v of list) {
+    const raw = String(v).trim();
+    if (raw === "") continue;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) continue;
+    if (!seen.has(n)) seen.set(n, raw);
+  }
+  return [...seen.entries()].sort((a, b) => a[0] - b[0]).map(([, raw]) => raw);
 }
 
 type SettingsShape = {
@@ -159,12 +168,11 @@ function SettingsPage() {
     loadSettings();
   }, []);
 
-  const toggleStroom = (value: string) =>
-    setStroominstelling((prev) => toggleOption(prev, value));
-  const toggleVrij = (value: string) =>
-    setVrijverbruikinstelling((prev) => toggleOption(prev, value));
-
   const handleSave = async () => {
+    const stroomNorm = normalizeValues(stroominstelling);
+    const vrijNorm = normalizeValues(vrijverbruikinstelling);
+    setStroominstelling(stroomNorm);
+    setVrijverbruikinstelling(vrijNorm);
     setSaving(true);
     setSaveStatus("idle");
     setErrorMessage("");
@@ -184,8 +192,8 @@ function SettingsPage() {
           'btw-nummer': btwNummer || undefined,
         },
         sessionDurationDays,
-        stroominstelling,
-        vrijverbruikinstelling,
+        stroominstelling: stroomNorm,
+        vrijverbruikinstelling: vrijNorm,
       });
       initialKeyRef.current = settingsKey(shape);
       setIsDirty(false);
@@ -392,28 +400,14 @@ function SettingsPage() {
           <div className="mb-3 text-[13px] text-muted-foreground">
             Beschikbare stroomopties systeembreed
           </div>
-          <div className="flex flex-wrap gap-2">
-            {STROOM_OPTIONS.map((amp) => {
-              const selected = stroominstelling.includes(amp);
-              return (
-                <button
-                  key={amp}
-                  type="button"
-                  onClick={() => toggleStroom(amp)}
-                  aria-pressed={selected}
-                  className={`bp-tap inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold ring-1 ring-inset transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    selected
-                      ? "bg-primary-soft text-primary ring-primary/30"
-                      : "bg-card text-muted-foreground ring-border hover:bg-muted"
-                  }`}
-                >
-                  <Zap className="h-3.5 w-3.5" />
-                  {amp} A
-                  {selected && <Check className="h-3.5 w-3.5" />}
-                </button>
-              );
-            })}
-          </div>
+          <ValueListEditor
+            values={stroominstelling}
+            onChange={setStroominstelling}
+            unit="A"
+            rowLabel="Stroomwaarde"
+            newLabel="Nieuwe stroomwaarde"
+            icon={Zap}
+          />
         </Card>
 
         <SectionLabel>Vrij verbruik</SectionLabel>
@@ -421,27 +415,14 @@ function SettingsPage() {
           <div className="mb-3 text-[13px] text-muted-foreground">
             Dagelijkse gratis verbruiksopties (kWh)
           </div>
-          <div className="flex flex-wrap gap-2">
-            {VRIJ_OPTIONS.map((kwh) => {
-              const selected = vrijverbruikinstelling.includes(kwh);
-              return (
-                <button
-                  key={kwh}
-                  type="button"
-                  onClick={() => toggleVrij(kwh)}
-                  aria-pressed={selected}
-                  className={`bp-tap inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold ring-1 ring-inset transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    selected
-                      ? "bg-secondary text-foreground ring-border"
-                      : "bg-card text-muted-foreground ring-border hover:bg-muted"
-                  }`}
-                >
-                  {kwh} kWh
-                  {selected && <Check className="h-3.5 w-3.5" />}
-                </button>
-              );
-            })}
-          </div>
+          <ValueListEditor
+            values={vrijverbruikinstelling}
+            onChange={setVrijverbruikinstelling}
+            unit="kWh"
+            rowLabel="Verbruikswaarde"
+            newLabel="Nieuwe verbruikswaarde"
+            icon={ShieldCheck}
+          />
         </Card>
 
         <SectionLabel>Sessieduur</SectionLabel>
@@ -506,6 +487,112 @@ function SettingsPage() {
         </div>
       </div>
     </ManagerLayout>
+  );
+}
+
+function ValueListEditor({
+  values,
+  onChange,
+  unit,
+  rowLabel,
+  newLabel,
+  icon: Icon,
+}: {
+  values: string[];
+  onChange: (next: string[]) => void;
+  unit: string;
+  rowLabel: string;
+  newLabel: string;
+  icon: typeof Zap;
+}) {
+  const [draft, setDraft] = useState("");
+
+  const editValue = (index: number, raw: string) => {
+    const next = [...values];
+    next[index] = raw;
+    onChange(next);
+  };
+
+  const removeValue = (index: number) => {
+    onChange(values.filter((_, i) => i !== index));
+  };
+
+  const addValue = () => {
+    const n = Number(draft);
+    if (draft.trim() === "" || !Number.isFinite(n)) return;
+    if (!values.some((v) => Number(v) === n)) {
+      onChange([...values, String(n)]);
+    }
+    setDraft("");
+  };
+
+  const addDisabled = draft.trim() === "" || !Number.isFinite(Number(draft));
+
+  return (
+    <div className="space-y-2">
+      {values.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border px-3 py-3 text-[13px] text-muted-foreground">
+          Geen waarden ingesteld
+        </div>
+      )}
+
+      {values.map((value, index) => (
+        <div key={index} className="flex items-center gap-2">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+            <Icon className="h-4 w-4" />
+          </div>
+          <input
+            type="number"
+            min={0}
+            step={0.1}
+            value={value}
+            onChange={(e) => editValue(index, e.target.value)}
+            className="h-12 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-center text-[13.5px] font-semibold tabular-nums outline-none focus:ring-2 focus:ring-ring"
+            aria-label={`${rowLabel} ${index + 1}`}
+          />
+          <span className="w-10 shrink-0 text-[13px] font-medium text-muted-foreground">{unit}</span>
+          <button
+            type="button"
+            onClick={() => removeValue(index)}
+            aria-label={`Verwijder ${rowLabel} ${value} ${unit}`}
+            className="bp-tap grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+
+      <div className="flex items-center gap-2 border-t border-border pt-3">
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+          <Plus className="h-4 w-4" />
+        </div>
+        <input
+          type="number"
+          min={0}
+          step={0.1}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addValue();
+            }
+          }}
+          placeholder={`${newLabel} (bijv. 6.5)`}
+          className="h-12 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-center text-[13.5px] font-semibold tabular-nums outline-none placeholder:font-normal placeholder:text-muted-foreground/70 focus:ring-2 focus:ring-ring"
+          aria-label={newLabel}
+        />
+        <span className="w-10 shrink-0 text-[13px] font-medium text-muted-foreground">{unit}</span>
+        <button
+          type="button"
+          onClick={addValue}
+          disabled={addDisabled}
+          className="bp-tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Plus className="h-4 w-4" /> Toevoegen
+        </button>
+      </div>
+    </div>
   );
 }
 
