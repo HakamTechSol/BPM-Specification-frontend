@@ -33,6 +33,16 @@ export const Route = createFileRoute("/pitch/$id")({
   }),
 });
 
+const AFSTAND_OPTIONS = [
+  { value: 0, label: "Lokaal" },
+  { value: 1, label: "Afstand" },
+  { value: 3, label: "Afstand aan" },
+];
+
+function afstandLabel(value: number | null): string {
+  return AFSTAND_OPTIONS.find((o) => o.value === value)?.label ?? "";
+}
+
 function PitchDetail() {
   const { id } = Route.useParams();
   const [pitch, setPitch] = useState<PitchSummary | null>(null);
@@ -50,6 +60,9 @@ function PitchDetail() {
   const [confirm, setConfirm] = useState<null | "checkout" | "checkin" | "save">(null);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  // Target value for the "Afstandbesturing" selector awaiting confirmation;
+  // null = no change pending.
+  const [pendingAfstand, setPendingAfstand] = useState<number | null>(null);
 
   const initialPower = useRef(false);
   const initialMaxAmp = useRef(10);
@@ -195,21 +208,12 @@ function PitchDetail() {
                   Afstandbesturing
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { value: 0, label: "Lokaal" },
-                    { value: 1, label: "Afstand" },
-                    { value: 3, label: "Afstand aan" },
-                  ].map((opt) => (
+                  {AFSTAND_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       onClick={() => {
-                        setAfstand(opt.value);
-                        setHasChanges(
-                          power !== initialPower.current ||
-                            maxAmp !== initialMaxAmp.current ||
-                            freeUsage !== initialFreeUsage.current ||
-                            opt.value !== initialAfstand.current,
-                        );
+                        if (opt.value === afstand) return;
+                        setPendingAfstand(opt.value);
                       }}
                       className={`bp-tap flex h-9 items-center justify-center rounded-lg border px-3 text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         afstand === opt.value
@@ -236,10 +240,17 @@ function PitchDetail() {
                 <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Maximale stroom
                 </div>
+                {remoteActive && (
+                  <div className="mb-2 flex items-center gap-2 rounded-lg bg-warning-soft/60 px-3 py-2 text-[12px] font-medium text-warning">
+                    <Radio className="h-3.5 w-3.5 shrink-0" />
+                    Beheerd via afstandbediening — lokale bediening uitgeschakeld
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {amps.map((a) => (
                     <button
                       key={a}
+                      disabled={remoteActive}
                       onClick={() => {
                         setMaxAmp(a);
                         setHasChanges(
@@ -249,10 +260,12 @@ function PitchDetail() {
                             afstand !== initialAfstand.current,
                         );
                       }}
-                      className={`bp-tap flex h-12 flex-col items-center justify-center rounded-lg border px-3 text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      className={`bp-tap flex h-12 flex-col items-center justify-center rounded-lg border px-3 text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed ${
                         maxAmp === a
                           ? "border-primary bg-primary text-primary-foreground shadow-glow"
-                          : "border-border bg-card text-foreground hover:border-primary/40"
+                          : remoteActive
+                            ? "border-border bg-muted text-muted-foreground"
+                            : "border-border bg-card text-foreground hover:border-primary/40"
                       }`}
                     >
                       <span className="tabular-nums leading-none">{a}</span>
@@ -275,6 +288,7 @@ function PitchDetail() {
                   {freeOptions.map((f) => (
                     <button
                       key={f}
+                      disabled={remoteActive}
                       onClick={() => {
                         setFreeUsage(f);
                         setHasChanges(
@@ -284,10 +298,12 @@ function PitchDetail() {
                             afstand !== initialAfstand.current,
                         );
                       }}
-                      className={`bp-tap flex h-12 flex-col items-center justify-center rounded-lg border px-3 text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      className={`bp-tap flex h-12 flex-col items-center justify-center rounded-lg border px-3 text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed ${
                         freeUsage === f
                           ? "border-primary bg-primary text-primary-foreground shadow-glow"
-                          : "border-border bg-card text-foreground hover:border-primary/40"
+                          : remoteActive
+                            ? "border-border bg-muted text-muted-foreground"
+                            : "border-border bg-card text-foreground hover:border-primary/40"
                       }`}
                     >
                       <span className="tabular-nums leading-none">{f}</span>
@@ -468,6 +484,19 @@ function PitchDetail() {
           setConfirm(null);
           setSaving(true);
           try {
+            // When switching a remotely controlled pitch back to "Lokaal",
+            // release afstandbesturing FIRST so the local control actions
+            // below are accepted again. When switching INTO remote mode the
+            // afstandbesturing action is sent last (below) so any pending
+            // local changes made while still "Lokaal" can still apply.
+            const switchingToLokaal = afstand === 0 && (initialAfstand.current ?? 0) > 0;
+            if (afstand !== initialAfstand.current && switchingToLokaal) {
+              await triggerSync({
+                pitchId: pitch.pitchId,
+                action: "set_afstandbesturing",
+                value: afstand,
+              });
+            }
             if (power !== initialPower.current) {
               await triggerSync({ pitchId: pitch.pitchId, action: "toggle_power" });
             }
@@ -481,7 +510,7 @@ function PitchDetail() {
                 value: freeUsage,
               });
             }
-            if (afstand !== initialAfstand.current) {
+            if (afstand !== initialAfstand.current && !switchingToLokaal) {
               await triggerSync({
                 pitchId: pitch.pitchId,
                 action: "set_afstandbesturing",
@@ -572,6 +601,31 @@ function PitchDetail() {
             console.error("Checkin mislukt:", err);
             setSaving(false);
           }
+        }}
+      />
+
+      <ConfirmDialog
+        open={pendingAfstand !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingAfstand(null);
+        }}
+        title="Afstandbediening wijzigen?"
+        description={`Weet u zeker dat u de afstandbediening wilt wijzigen naar ${afstandLabel(pendingAfstand)}?`}
+        confirmLabel="Bevestigen"
+        cancelLabel="Annuleren"
+        variant="warning"
+        icon={Radio}
+        onConfirm={() => {
+          const next = pendingAfstand;
+          setPendingAfstand(null);
+          if (next === null) return;
+          setAfstand(next);
+          setHasChanges(
+            power !== initialPower.current ||
+              maxAmp !== initialMaxAmp.current ||
+              freeUsage !== initialFreeUsage.current ||
+              next !== initialAfstand.current,
+          );
         }}
       />
     </ManagerLayout>
