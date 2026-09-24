@@ -197,12 +197,6 @@ function PitchDetail() {
                 iconBg={power ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"}
                 disabled={remoteActive}
               />
-              {remoteActive && (
-                <div className="flex items-center gap-2 border-t border-border bg-warning-soft/60 px-3 py-2.5 text-[12px] font-medium text-warning">
-                  <Radio className="h-3.5 w-3.5 shrink-0" />
-                  Beheerd via afstandbediening — lokale bediening uitgeschakeld
-                </div>
-              )}
               <div className="border-t border-border px-3 py-1.5">
                 <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Afstandbesturing
@@ -240,12 +234,6 @@ function PitchDetail() {
                 <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Maximale stroom
                 </div>
-                {remoteActive && (
-                  <div className="mb-2 flex items-center gap-2 rounded-lg bg-warning-soft/60 px-3 py-2 text-[12px] font-medium text-warning">
-                    <Radio className="h-3.5 w-3.5 shrink-0" />
-                    Beheerd via afstandbediening — lokale bediening uitgeschakeld
-                  </div>
-                )}
                 <div className="flex flex-wrap gap-2">
                   {amps.map((a) => (
                     <button
@@ -459,12 +447,6 @@ function PitchDetail() {
                 </button>
               )}
               </div>
-              {remoteActive && (
-                <div className="mt-2 flex items-center justify-center gap-1.5 text-center text-[11.5px] font-medium text-warning">
-                  <Radio className="h-3.5 w-3.5 shrink-0" />
-                  Beheerd via afstandbediening — lokale bediening uitgeschakeld
-                </div>
-              )}
             </>
           )}
         </div>
