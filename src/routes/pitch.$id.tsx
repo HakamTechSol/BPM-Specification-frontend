@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { ManagerLayout } from "@/components/manager-layout";
 import {
   Card,
@@ -11,6 +11,15 @@ import {
 } from "@/components/bp";
 import { getAllPitches, triggerSync, getSettings, type PitchSummary } from "@/lib/api";
 import {
+  changedFields,
+  hasChanges as settingsHaveChanges,
+  isRemoteActive,
+  isSwitchingToLokaal,
+  settingsFromPitch,
+  type PitchSettings,
+  type PitchSettingKey,
+} from "@/lib/pitchSettings";
+import {
   ChevronLeft,
   Power,
   Radio,
@@ -21,6 +30,7 @@ import {
   Save,
   Loader2,
   Calendar,
+  X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/pitch/$id")({
@@ -43,31 +53,56 @@ function afstandLabel(value: number | null): string {
   return AFSTAND_OPTIONS.find((o) => o.value === value)?.label ?? "";
 }
 
+/** Field names used in the "Opslaan" confirmation, e.g. "maximale stroom". */
+const CHANGE_LABELS: Record<PitchSettingKey, string> = {
+  power: "elektriciteit",
+  maxAmp: "maximale stroom",
+  freeUsage: "gratis verbruik",
+  afstand: "afstandbesturing",
+};
+
 function PitchDetail() {
   const { id } = Route.useParams();
   const [pitch, setPitch] = useState<PitchSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [power, setPower] = useState(false);
   const [amps, setAmps] = useState<number[]>([6, 8, 10, 12, 16]);
-  const [maxAmp, setMaxAmp] = useState(10);
   const [freeOptions, setFreeOptions] = useState<number[]>([0, 1, 2, 4, 8]);
-  const [freeUsage, setFreeUsage] = useState(0);
-  const [afstand, setAfstand] = useState(0);
-  // Remote/cloud control active (1 = "Afstand", 3 = "Afstand aan") disables
-  // local controls; 0 = "Lokaal" keeps them enabled.
-  const remoteActive = afstand > 0;
+
+  // "saved" is the last value confirmed with the backend; "draft" is what the
+  // controls currently show. Every edit touches only the draft, and Opslaan
+  // sends just the fields that differ. Annuleren throws the draft away.
+  const [saved, setSaved] = useState<PitchSettings | null>(null);
+  const [draft, setDraft] = useState<PitchSettings | null>(null);
+
   const [confirm, setConfirm] = useState<null | "checkout" | "checkin" | "save">(null);
   const [saving, setSaving] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
   // Target value for the "Afstandbesturing" selector awaiting confirmation;
   // null = no change pending.
   const [pendingAfstand, setPendingAfstand] = useState<number | null>(null);
 
-  const initialPower = useRef(false);
-  const initialMaxAmp = useRef(10);
-  const initialFreeUsage = useRef(0);
-  const initialAfstand = useRef(0);
+  const hasChanges = saved !== null && draft !== null && settingsHaveChanges(saved, draft);
+  // Remote/cloud control active (1 = "Afstand", 3 = "Afstand aan") disables
+  // local controls; 0 = "Lokaal" keeps them enabled.
+  const remoteActive = draft !== null && isRemoteActive(draft);
+
+  const pendingChanges =
+    saved && draft ? changedFields(saved, draft).map((key) => CHANGE_LABELS[key]) : [];
+
+  function updateDraft(patch: Partial<PitchSettings>) {
+    setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+  }
+
+  /** Re-seed both states from a freshly fetched pitch record. */
+  function applyServerSettings(source: PitchSettings) {
+    setSaved(source);
+    setDraft(source);
+  }
+
+  function cancelChanges() {
+    setDraft(saved);
+    setPendingAfstand(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -86,15 +121,7 @@ function PitchDetail() {
           const found = pitchData.pitches.find((p) => p.pitchId === pitchId);
           if (found) {
             setPitch(found);
-            setPower(found.gewenst === 1);
-            setMaxAmp(found.maxAmperage || 10);
-            setFreeUsage(found.freeUsage || 0);
-            setAfstand(found.afstandbesturing ?? 0);
-            initialPower.current = found.gewenst === 1;
-            initialMaxAmp.current = found.maxAmperage || 10;
-            initialFreeUsage.current = found.freeUsage || 0;
-            initialAfstand.current = found.afstandbesturing ?? 0;
-            setHasChanges(false);
+            applyServerSettings(settingsFromPitch(found));
           }
           setLoading(false);
         }
@@ -122,7 +149,7 @@ function PitchDetail() {
     );
   }
 
-  if (error || !pitch) {
+  if (error || !pitch || !saved || !draft) {
     return (
       <ManagerLayout title="Pitch niet gevonden">
         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -180,21 +207,15 @@ function PitchDetail() {
                 description={
                   remoteActive
                     ? "Stopcontact wordt beheerd via afstandbediening"
-                    : power
+                    : draft.power
                       ? "Stopcontact is ingeschakeld"
                       : "Stopcontact is uit"
                 }
-                checked={power}
-                onCheckedChange={(v) => {
-                  setPower(v);
-                  setHasChanges(
-                    v !== initialPower.current ||
-                      maxAmp !== initialMaxAmp.current ||
-                      freeUsage !== initialFreeUsage.current ||
-                      afstand !== initialAfstand.current,
-                  );
-                }}
-                iconBg={power ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"}
+                checked={draft.power}
+                onCheckedChange={(v) => updateDraft({ power: v })}
+                iconBg={
+                  draft.power ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"
+                }
                 disabled={remoteActive}
               />
               <div className="border-t border-border px-3 py-1.5">
@@ -206,11 +227,11 @@ function PitchDetail() {
                     <button
                       key={opt.value}
                       onClick={() => {
-                        if (opt.value === afstand) return;
+                        if (opt.value === draft.afstand) return;
                         setPendingAfstand(opt.value);
                       }}
                       className={`bp-tap flex h-9 items-center justify-center rounded-lg border px-3 text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                        afstand === opt.value
+                        draft.afstand === opt.value
                           ? "border-primary bg-primary text-primary-foreground shadow-glow"
                           : "border-border bg-card text-foreground hover:border-primary/40"
                       }`}
@@ -239,17 +260,9 @@ function PitchDetail() {
                     <button
                       key={a}
                       disabled={remoteActive}
-                      onClick={() => {
-                        setMaxAmp(a);
-                        setHasChanges(
-                          power !== initialPower.current ||
-                            a !== initialMaxAmp.current ||
-                            freeUsage !== initialFreeUsage.current ||
-                            afstand !== initialAfstand.current,
-                        );
-                      }}
+                      onClick={() => updateDraft({ maxAmp: a })}
                       className={`bp-tap flex h-12 flex-col items-center justify-center rounded-lg border px-3 text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed ${
-                        maxAmp === a
+                        draft.maxAmp === a
                           ? "border-primary bg-primary text-primary-foreground shadow-glow"
                           : remoteActive
                             ? "border-border bg-muted text-muted-foreground"
@@ -259,7 +272,9 @@ function PitchDetail() {
                       <span className="tabular-nums leading-none">{a}</span>
                       <span
                         className={`text-[11px] font-medium leading-none mt-0.5 ${
-                          maxAmp === a ? "text-primary-foreground/85" : "text-muted-foreground"
+                          draft.maxAmp === a
+                            ? "text-primary-foreground/85"
+                            : "text-muted-foreground"
                         }`}
                       >
                         Amp
@@ -277,17 +292,9 @@ function PitchDetail() {
                     <button
                       key={f}
                       disabled={remoteActive}
-                      onClick={() => {
-                        setFreeUsage(f);
-                        setHasChanges(
-                          power !== initialPower.current ||
-                            maxAmp !== initialMaxAmp.current ||
-                            f !== initialFreeUsage.current ||
-                            afstand !== initialAfstand.current,
-                        );
-                      }}
+                      onClick={() => updateDraft({ freeUsage: f })}
                       className={`bp-tap flex h-12 flex-col items-center justify-center rounded-lg border px-3 text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed ${
-                        freeUsage === f
+                        draft.freeUsage === f
                           ? "border-primary bg-primary text-primary-foreground shadow-glow"
                           : remoteActive
                             ? "border-border bg-muted text-muted-foreground"
@@ -297,7 +304,9 @@ function PitchDetail() {
                       <span className="tabular-nums leading-none">{f}</span>
                       <span
                         className={`text-[11px] font-medium leading-none mt-0.5 ${
-                          freeUsage === f ? "text-primary-foreground/85" : "text-muted-foreground"
+                          draft.freeUsage === f
+                            ? "text-primary-foreground/85"
+                            : "text-muted-foreground"
                         }`}
                       >
                         kWh
@@ -399,7 +408,10 @@ function PitchDetail() {
       <div className="fixed bottom-20 lg:bottom-0 inset-x-0 lg:left-64 z-20 border-t border-border bg-background/95 backdrop-blur-xl pt-2 pb-2 px-5 lg:px-8">
         <div className="mx-auto max-w-4xl">
           {saving ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex h-10 items-center justify-center rounded-xl bg-muted">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
               <div className="flex h-10 items-center justify-center rounded-xl bg-muted">
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
@@ -409,43 +421,55 @@ function PitchDetail() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={cancelChanges}
+                  disabled={!hasChanges}
+                  aria-label="Annuleren"
+                  className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl border text-[12.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-[13.5px] ${
+                    hasChanges
+                      ? "border-border bg-card text-foreground hover:bg-muted"
+                      : "cursor-not-allowed border-transparent bg-muted text-muted-foreground"
+                  }`}
+                >
+                  <X className="h-4 w-4" /> Annuleren
+                </button>
                 <button
                   onClick={() => setConfirm("save")}
-                disabled={!hasChanges}
-                className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[13.5px] font-semibold shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                  hasChanges
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                    : "bg-muted text-muted-foreground cursor-not-allowed"
-                }`}
-              >
-                <Save className="h-4 w-4" /> Opslaan
-              </button>
-              {power ? (
-                <button
-                  onClick={() => setConfirm("checkout")}
-                  disabled={remoteActive}
-                  className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    remoteActive
-                      ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground"
-                      : "border border-border bg-card text-destructive"
+                  disabled={!hasChanges}
+                  className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-[13.5px] ${
+                    hasChanges
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "bg-muted text-muted-foreground cursor-not-allowed"
                   }`}
                 >
-                  <LogOut className="h-4 w-4" /> Uitchecken
+                  <Save className="h-4 w-4" /> Opslaan
                 </button>
-              ) : (
-                <button
-                  onClick={() => setConfirm("checkin")}
-                  disabled={remoteActive}
-                  className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[13.5px] font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    remoteActive
-                      ? "cursor-not-allowed bg-muted text-muted-foreground"
-                      : "bg-success text-white hover:bg-success/90"
-                  }`}
-                >
-                  <LogIn className="h-4 w-4" /> Inchecken
-                </button>
-              )}
+                {draft.power ? (
+                  <button
+                    onClick={() => setConfirm("checkout")}
+                    disabled={remoteActive}
+                    className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-[13.5px] ${
+                      remoteActive
+                        ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground"
+                        : "border border-border bg-card text-destructive"
+                    }`}
+                  >
+                    <LogOut className="h-4 w-4" /> Uitchecken
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setConfirm("checkin")}
+                    disabled={remoteActive}
+                    className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-[13.5px] ${
+                      remoteActive
+                        ? "cursor-not-allowed bg-muted text-muted-foreground"
+                        : "bg-success text-white hover:bg-success/90"
+                    }`}
+                  >
+                    <LogIn className="h-4 w-4" /> Inchecken
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -458,7 +482,11 @@ function PitchDetail() {
           if (!open) setConfirm(null);
         }}
         title="Wijzigingen opslaan?"
-        description="De instellingen worden direct toegepast."
+        description={
+          pendingChanges.length > 0
+            ? `Wordt direct toegepast: ${pendingChanges.join(", ")}.`
+            : "De instellingen worden direct toegepast."
+        }
         confirmLabel="Opslaan"
         variant="default"
         icon={Save}
@@ -471,39 +499,41 @@ function PitchDetail() {
             // below are accepted again. When switching INTO remote mode the
             // afstandbesturing action is sent last (below) so any pending
             // local changes made while still "Lokaal" can still apply.
-            const switchingToLokaal = afstand === 0 && (initialAfstand.current ?? 0) > 0;
-            if (afstand !== initialAfstand.current && switchingToLokaal) {
+            const switchingToLokaal = isSwitchingToLokaal(saved, draft);
+            if (switchingToLokaal) {
               await triggerSync({
                 pitchId: pitch.pitchId,
                 action: "set_afstandbesturing",
-                value: afstand,
+                value: draft.afstand,
               });
             }
-            if (power !== initialPower.current) {
+            if (draft.power !== saved.power) {
               await triggerSync({ pitchId: pitch.pitchId, action: "toggle_power" });
             }
-            if (maxAmp !== initialMaxAmp.current) {
-              await triggerSync({ pitchId: pitch.pitchId, action: "set_amperage", value: maxAmp });
+            if (draft.maxAmp !== saved.maxAmp) {
+              await triggerSync({
+                pitchId: pitch.pitchId,
+                action: "set_amperage",
+                value: draft.maxAmp,
+              });
             }
-            if (freeUsage !== initialFreeUsage.current) {
+            if (draft.freeUsage !== saved.freeUsage) {
               await triggerSync({
                 pitchId: pitch.pitchId,
                 action: "set_free_usage",
-                value: freeUsage,
+                value: draft.freeUsage,
               });
             }
-            if (afstand !== initialAfstand.current && !switchingToLokaal) {
+            if (draft.afstand !== saved.afstand && !switchingToLokaal) {
               await triggerSync({
                 pitchId: pitch.pitchId,
                 action: "set_afstandbesturing",
-                value: afstand,
+                value: draft.afstand,
               });
             }
-            initialPower.current = power;
-            initialMaxAmp.current = maxAmp;
-            initialFreeUsage.current = freeUsage;
-            initialAfstand.current = afstand;
-            setHasChanges(false);
+            // Everything reached the backend: the draft is now the saved state,
+            // which drops Opslaan back to disabled.
+            applyServerSettings(draft);
             setSaving(false);
           } catch (err) {
             console.error("Sync mislukt:", err);
@@ -531,16 +561,10 @@ function PitchDetail() {
             const refreshed = updated.pitches.find((p) => p.pitchId === pitch.pitchId);
             if (refreshed) {
               setPitch(refreshed);
-              setPower(refreshed.gewenst === 1);
-              setMaxAmp(refreshed.maxAmperage || 10);
-              setFreeUsage(refreshed.freeUsage || 0);
-              setAfstand(refreshed.afstandbesturing ?? 0);
-              initialPower.current = refreshed.gewenst === 1;
-              initialMaxAmp.current = refreshed.maxAmperage || 10;
-              initialFreeUsage.current = refreshed.freeUsage || 0;
-              initialAfstand.current = refreshed.afstandbesturing ?? 0;
+              // The server state just changed underneath us, so both saved and
+              // draft are re-seeded; any pending draft edits are discarded.
+              applyServerSettings(settingsFromPitch(refreshed));
             }
-            setHasChanges(false);
             setSaving(false);
           } catch (err) {
             console.error("Checkout mislukt:", err);
@@ -568,16 +592,10 @@ function PitchDetail() {
             const refreshed = updated.pitches.find((p) => p.pitchId === pitch.pitchId);
             if (refreshed) {
               setPitch(refreshed);
-              setPower(refreshed.gewenst === 1);
-              setMaxAmp(refreshed.maxAmperage || 10);
-              setFreeUsage(refreshed.freeUsage || 0);
-              setAfstand(refreshed.afstandbesturing ?? 0);
-              initialPower.current = refreshed.gewenst === 1;
-              initialMaxAmp.current = refreshed.maxAmperage || 10;
-              initialFreeUsage.current = refreshed.freeUsage || 0;
-              initialAfstand.current = refreshed.afstandbesturing ?? 0;
+              // The server state just changed underneath us, so both saved and
+              // draft are re-seeded; any pending draft edits are discarded.
+              applyServerSettings(settingsFromPitch(refreshed));
             }
-            setHasChanges(false);
             setSaving(false);
           } catch (err) {
             console.error("Checkin mislukt:", err);
@@ -601,13 +619,7 @@ function PitchDetail() {
           const next = pendingAfstand;
           setPendingAfstand(null);
           if (next === null) return;
-          setAfstand(next);
-          setHasChanges(
-            power !== initialPower.current ||
-              maxAmp !== initialMaxAmp.current ||
-              freeUsage !== initialFreeUsage.current ||
-              next !== initialAfstand.current,
-          );
+          updateDraft({ afstand: next });
         }}
       />
     </ManagerLayout>
