@@ -16,8 +16,13 @@ import { Route as FailuresRouteImport } from './routes/failures'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutIndexRouteImport } from './routes/about/index'
 import { Route as PitchIdRouteImport } from './routes/pitch.$id'
 import { Route as GuestIdRouteImport } from './routes/guest.$id'
+import { Route as AboutVoorwaardenRouteImport } from './routes/about/voorwaarden'
+import { Route as AboutPrivacyRouteImport } from './routes/about/privacy'
+import { Route as AboutContactRouteImport } from './routes/about/contact'
+import { Route as AboutBedrijfRouteImport } from './routes/about/bedrijf'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -54,6 +59,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutIndexRoute = AboutIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AboutRoute,
+} as any)
 const PitchIdRoute = PitchIdRouteImport.update({
   id: '/pitch/$id',
   path: '/pitch/$id',
@@ -64,40 +74,74 @@ const GuestIdRoute = GuestIdRouteImport.update({
   path: '/guest/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutVoorwaardenRoute = AboutVoorwaardenRouteImport.update({
+  id: '/voorwaarden',
+  path: '/voorwaarden',
+  getParentRoute: () => AboutRoute,
+} as any)
+const AboutPrivacyRoute = AboutPrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => AboutRoute,
+} as any)
+const AboutContactRoute = AboutContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => AboutRoute,
+} as any)
+const AboutBedrijfRoute = AboutBedrijfRouteImport.update({
+  id: '/bedrijf',
+  path: '/bedrijf',
+  getParentRoute: () => AboutRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
+  '/about': typeof AboutRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/failures': typeof FailuresRoute
   '/login': typeof LoginRoute
   '/maintenance': typeof MaintenanceRoute
   '/settings': typeof SettingsRoute
+  '/about/bedrijf': typeof AboutBedrijfRoute
+  '/about/contact': typeof AboutContactRoute
+  '/about/privacy': typeof AboutPrivacyRoute
+  '/about/voorwaarden': typeof AboutVoorwaardenRoute
   '/guest/$id': typeof GuestIdRoute
   '/pitch/$id': typeof PitchIdRoute
+  '/about/': typeof AboutIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
   '/dashboard': typeof DashboardRoute
   '/failures': typeof FailuresRoute
   '/login': typeof LoginRoute
   '/maintenance': typeof MaintenanceRoute
   '/settings': typeof SettingsRoute
+  '/about/bedrijf': typeof AboutBedrijfRoute
+  '/about/contact': typeof AboutContactRoute
+  '/about/privacy': typeof AboutPrivacyRoute
+  '/about/voorwaarden': typeof AboutVoorwaardenRoute
   '/guest/$id': typeof GuestIdRoute
   '/pitch/$id': typeof PitchIdRoute
+  '/about': typeof AboutIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
+  '/about': typeof AboutRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/failures': typeof FailuresRoute
   '/login': typeof LoginRoute
   '/maintenance': typeof MaintenanceRoute
   '/settings': typeof SettingsRoute
+  '/about/bedrijf': typeof AboutBedrijfRoute
+  '/about/contact': typeof AboutContactRoute
+  '/about/privacy': typeof AboutPrivacyRoute
+  '/about/voorwaarden': typeof AboutVoorwaardenRoute
   '/guest/$id': typeof GuestIdRoute
   '/pitch/$id': typeof PitchIdRoute
+  '/about/': typeof AboutIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -109,19 +153,28 @@ export interface FileRouteTypes {
     | '/login'
     | '/maintenance'
     | '/settings'
+    | '/about/bedrijf'
+    | '/about/contact'
+    | '/about/privacy'
+    | '/about/voorwaarden'
     | '/guest/$id'
     | '/pitch/$id'
+    | '/about/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/about'
     | '/dashboard'
     | '/failures'
     | '/login'
     | '/maintenance'
     | '/settings'
+    | '/about/bedrijf'
+    | '/about/contact'
+    | '/about/privacy'
+    | '/about/voorwaarden'
     | '/guest/$id'
     | '/pitch/$id'
+    | '/about'
   id:
     | '__root__'
     | '/'
@@ -131,13 +184,18 @@ export interface FileRouteTypes {
     | '/login'
     | '/maintenance'
     | '/settings'
+    | '/about/bedrijf'
+    | '/about/contact'
+    | '/about/privacy'
+    | '/about/voorwaarden'
     | '/guest/$id'
     | '/pitch/$id'
+    | '/about/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AboutRoute: typeof AboutRoute
+  AboutRoute: typeof AboutRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   FailuresRoute: typeof FailuresRoute
   LoginRoute: typeof LoginRoute
@@ -198,6 +256,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about/': {
+      id: '/about/'
+      path: '/'
+      fullPath: '/about/'
+      preLoaderRoute: typeof AboutIndexRouteImport
+      parentRoute: typeof AboutRoute
+    }
     '/pitch/$id': {
       id: '/pitch/$id'
       path: '/pitch/$id'
@@ -212,12 +277,58 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GuestIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about/voorwaarden': {
+      id: '/about/voorwaarden'
+      path: '/voorwaarden'
+      fullPath: '/about/voorwaarden'
+      preLoaderRoute: typeof AboutVoorwaardenRouteImport
+      parentRoute: typeof AboutRoute
+    }
+    '/about/privacy': {
+      id: '/about/privacy'
+      path: '/privacy'
+      fullPath: '/about/privacy'
+      preLoaderRoute: typeof AboutPrivacyRouteImport
+      parentRoute: typeof AboutRoute
+    }
+    '/about/contact': {
+      id: '/about/contact'
+      path: '/contact'
+      fullPath: '/about/contact'
+      preLoaderRoute: typeof AboutContactRouteImport
+      parentRoute: typeof AboutRoute
+    }
+    '/about/bedrijf': {
+      id: '/about/bedrijf'
+      path: '/bedrijf'
+      fullPath: '/about/bedrijf'
+      preLoaderRoute: typeof AboutBedrijfRouteImport
+      parentRoute: typeof AboutRoute
+    }
   }
 }
 
+interface AboutRouteChildren {
+  AboutBedrijfRoute: typeof AboutBedrijfRoute
+  AboutContactRoute: typeof AboutContactRoute
+  AboutPrivacyRoute: typeof AboutPrivacyRoute
+  AboutVoorwaardenRoute: typeof AboutVoorwaardenRoute
+  AboutIndexRoute: typeof AboutIndexRoute
+}
+
+const AboutRouteChildren: AboutRouteChildren = {
+  AboutBedrijfRoute: AboutBedrijfRoute,
+  AboutContactRoute: AboutContactRoute,
+  AboutPrivacyRoute: AboutPrivacyRoute,
+  AboutVoorwaardenRoute: AboutVoorwaardenRoute,
+  AboutIndexRoute: AboutIndexRoute,
+}
+
+const AboutRouteWithChildren = AboutRoute._addFileChildren(AboutRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AboutRoute: AboutRoute,
+  AboutRoute: AboutRouteWithChildren,
   DashboardRoute: DashboardRoute,
   FailuresRoute: FailuresRoute,
   LoginRoute: LoginRoute,

@@ -12,8 +12,8 @@ export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
   head: () => ({
     meta: [
-      { title: "Pitches · BluePlug" },
-      { name: "description", content: "Live overview of every pitch on your campsite." },
+      { title: "Plaatsen · BluePlug" },
+      { name: "description", content: "Live overview of every plaats on your campsite." },
     ],
   }),
 });
@@ -192,7 +192,7 @@ function Dashboard() {
       <ManagerLayout title="Duinrand Camping" subtitle="Verbinding verbroken">
         <ErrorState
           title={fatalError}
-          description="Kan pitch gegevens niet laden. Controleer de verbinding."
+          description="Kan plaatsgegevens niet laden. Controleer de verbinding."
           onRetry={() => window.location.reload()}
         />
       </ManagerLayout>

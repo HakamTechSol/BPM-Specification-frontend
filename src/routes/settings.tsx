@@ -57,6 +57,45 @@ const EMPTY_SETTINGS: SettingsShape = {
   vrijverbruikinstelling: [],
 };
 
+/**
+ * Compact form row: icon, label and control on a single line, also on mobile,
+ * so a long form needs far less scrolling. The control keeps a 40px height so
+ * it stays comfortable to tap.
+ */
+function FieldRow({
+  icon: Icon,
+  label,
+  hint,
+  labelClassName = "min-w-0 flex-1",
+  children,
+}: {
+  icon: typeof Mail;
+  label: string;
+  hint?: string;
+  /** Narrow the label column when the control needs the extra width. */
+  labelClassName?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 px-3 py-2">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className={labelClassName}>
+        <div className="text-[13.5px] font-semibold leading-tight">{label}</div>
+        {hint && <div className="text-[11.5px] leading-tight text-muted-foreground">{hint}</div>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Text/number field sized for the compact rows: 40px tall, fixed width on mobile. */
+const FIELD_INPUT =
+  "h-10 rounded-lg border border-input bg-card px-2.5 text-[14px] outline-none focus:ring-2 focus:ring-ring";
+/** Single-line field that sits at the right of a row. */
+const ROW_INPUT = `${FIELD_INPUT} w-32 shrink-0 text-right sm:w-auto sm:flex-1`;
+
 function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -161,40 +200,27 @@ function SettingsPage() {
       }
       noScroll={true}
     >
-      <div className="flex flex-col gap-3 max-w-4xl mx-auto w-full flex-1 overflow-y-auto pb-24 pt-5">
+      <div className="flex flex-col gap-2 max-w-4xl mx-auto w-full flex-1 overflow-y-auto pb-24 pt-3">
         <SectionLabel>Bedrijfsgegevens</SectionLabel>
         <Card className="divide-y divide-border">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-              <Building2 className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold">Bedrijfsnaam</div>
-            </div>
+          <FieldRow icon={Building2} label="Bedrijfsnaam">
             <input
               type="text"
               value={draft.naam}
               onChange={(e) => updateDraft({ naam: e.target.value })}
-              className="h-12 w-full sm:w-auto sm:flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+              className={ROW_INPUT}
               aria-label="Bedrijfsnaam"
             />
-          </div>
-          <div className="flex flex-col gap-3 p-4">
-            <div className="flex items-center gap-3">
-              <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-                <MapPin className="h-4 w-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[14px] font-semibold">Adres</div>
-              </div>
-            </div>
-            <div className="flex gap-2 w-full">
+          </FieldRow>
+
+          <FieldRow icon={MapPin} label="Adres" labelClassName="w-12 shrink-0">
+            <div className="flex min-w-0 flex-1 gap-2">
               <input
                 type="text"
                 value={draft.straat}
                 onChange={(e) => updateDraft({ straat: e.target.value })}
                 placeholder="Straat"
-                className="h-12 flex-1 min-w-0 rounded-lg border border-input bg-card px-3 text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+                className={`${FIELD_INPUT} min-w-0 flex-1`}
                 aria-label="Straat"
               />
               <input
@@ -202,137 +228,96 @@ function SettingsPage() {
                 value={draft.nummer}
                 onChange={(e) => updateDraft({ nummer: e.target.value })}
                 placeholder="Nr"
-                className="h-12 w-20 rounded-lg border border-input bg-card px-3 text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+                className={`${FIELD_INPUT} w-16 shrink-0 text-center`}
                 aria-label="Huisnummer"
               />
             </div>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-              <MapPin className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold">Postcode</div>
-            </div>
+          </FieldRow>
+
+          <FieldRow icon={MapPin} label="Postcode">
             <input
               type="text"
               value={draft.postcode}
               onChange={(e) => updateDraft({ postcode: e.target.value })}
-              className="h-12 w-full sm:w-auto sm:flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+              className={ROW_INPUT}
               aria-label="Postcode"
             />
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-              <MapPin className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold">Plaats</div>
-            </div>
+          </FieldRow>
+
+          <FieldRow icon={MapPin} label="Plaats">
             <input
               type="text"
               value={draft.plaats}
               onChange={(e) => updateDraft({ plaats: e.target.value })}
-              className="h-12 w-full sm:w-auto sm:flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+              className={ROW_INPUT}
               aria-label="Plaats"
             />
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-              <MapPin className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold">Land</div>
-            </div>
+          </FieldRow>
+
+          <FieldRow icon={MapPin} label="Land">
             <input
               type="text"
               value={draft.land}
               onChange={(e) => updateDraft({ land: e.target.value })}
-              className="h-12 w-full sm:w-auto sm:flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+              className={ROW_INPUT}
               aria-label="Land"
             />
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-              <Phone className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold">Telefoon</div>
-            </div>
+          </FieldRow>
+
+          <FieldRow icon={Phone} label="Telefoon">
             <input
               type="tel"
               value={draft.telefoon}
               onChange={(e) => updateDraft({ telefoon: e.target.value })}
-              className="h-12 w-full sm:w-auto sm:flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+              className={ROW_INPUT}
               aria-label="Telefoon"
             />
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-              <Mail className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold">E-mailadres</div>
-            </div>
+          </FieldRow>
+
+          <FieldRow icon={Mail} label="E-mailadres">
             <input
               type="email"
               value={draft.email}
               onChange={(e) => updateDraft({ email: e.target.value })}
-              className="h-12 w-full sm:w-auto sm:flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+              className={ROW_INPUT}
               aria-label="E-mailadres"
             />
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-              <Globe className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold">Website</div>
-              <div className="text-[12px] text-muted-foreground">Website</div>
-            </div>
+          </FieldRow>
+
+          <FieldRow icon={Globe} label="Website">
             <input
               type="url"
               value={draft.website}
               onChange={(e) => updateDraft({ website: e.target.value })}
-              className="h-12 w-full sm:w-auto sm:flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+              className={ROW_INPUT}
               aria-label="Website"
             />
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-              <FileText className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold">KVK-nummer</div>
-            </div>
+          </FieldRow>
+
+          <FieldRow icon={FileText} label="KVK-nummer">
             <input
               type="text"
               value={draft.kvk}
               onChange={(e) => updateDraft({ kvk: e.target.value })}
-              className="h-12 w-full sm:w-auto sm:flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+              className={ROW_INPUT}
               aria-label="KVK-nummer"
             />
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-              <FileText className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold">BTW-nummer</div>
-            </div>
+          </FieldRow>
+
+          <FieldRow icon={FileText} label="BTW-nummer">
             <input
               type="text"
               value={draft.btwNummer}
               onChange={(e) => updateDraft({ btwNummer: e.target.value })}
-              className="h-12 w-full sm:w-auto sm:flex-1 rounded-lg border border-input bg-card px-3 text-right text-[13.5px] outline-none focus:ring-2 focus:ring-ring"
+              className={ROW_INPUT}
               aria-label="BTW-nummer"
             />
-          </div>
+          </FieldRow>
         </Card>
 
         <SectionLabel>Stroom overschrijding</SectionLabel>
-        <Card className="p-4">
-          <div className="mb-3 text-[13px] text-muted-foreground">
+        <Card className="p-3">
+          <div className="mb-2 text-[12.5px] text-muted-foreground">
             Beschikbare stroomopties systeembreed
           </div>
           <ValueListEditor
@@ -346,8 +331,8 @@ function SettingsPage() {
         </Card>
 
         <SectionLabel>Vrij verbruik</SectionLabel>
-        <Card className="p-4">
-          <div className="mb-3 text-[13px] text-muted-foreground">
+        <Card className="p-3">
+          <div className="mb-2 text-[12.5px] text-muted-foreground">
             Dagelijkse gratis verbruiksopties (kWh)
           </div>
           <ValueListEditor
@@ -361,18 +346,13 @@ function SettingsPage() {
         </Card>
 
         <SectionLabel>Sessieduur</SectionLabel>
-        <Card className="p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-              <ShieldCheck className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold">Onthoud apparaat duur</div>
-              <div className="text-[12px] text-muted-foreground">
-                Aantal dagen dat een ingelogd apparaat onthouden wordt
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
+        <Card className="p-3">
+          <FieldRow
+            icon={ShieldCheck}
+            label="Onthoud apparaat duur"
+            hint="Aantal dagen dat een apparaat onthouden wordt"
+          >
+            <div className="flex shrink-0 items-center gap-1.5">
               <input
                 type="number"
                 min={1}
@@ -384,12 +364,12 @@ function SettingsPage() {
                   if (!isNaN(v))
                     updateDraft({ sessionDurationDays: Math.max(1, Math.min(365, v)) });
                 }}
-                className="h-12 w-24 rounded-lg border border-input bg-card px-3 text-center text-[13.5px] font-semibold outline-none focus:ring-2 focus:ring-ring tabular-nums"
+                className={`${FIELD_INPUT} w-16 text-center font-semibold tabular-nums`}
                 aria-label="Sessieduur in dagen"
               />
               <span className="text-[13px] font-medium text-muted-foreground">dagen</span>
             </div>
-          </div>
+          </FieldRow>
         </Card>
 
         {isDirty && (
@@ -482,16 +462,16 @@ function ValueListEditor({
   const addDisabled = draft.trim() === "" || !Number.isFinite(Number(draft));
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {values.length === 0 && (
-        <div className="rounded-lg border border-dashed border-border px-3 py-3 text-[13px] text-muted-foreground">
+        <div className="rounded-lg border border-dashed border-border px-3 py-2.5 text-[13px] text-muted-foreground">
           Geen waarden ingesteld
         </div>
       )}
 
       {values.map((value, index) => (
         <div key={index} className="flex items-center gap-2">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
             <Icon className="h-4 w-4" />
           </div>
           <input
@@ -500,25 +480,25 @@ function ValueListEditor({
             step={0.1}
             value={value}
             onChange={(e) => editValue(index, e.target.value)}
-            className="h-12 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-center text-[13.5px] font-semibold tabular-nums outline-none focus:ring-2 focus:ring-ring"
+            className={`${FIELD_INPUT} min-w-0 flex-1 text-center font-semibold tabular-nums`}
             aria-label={`${rowLabel} ${index + 1}`}
           />
-          <span className="w-10 shrink-0 text-[13px] font-medium text-muted-foreground">
+          <span className="w-8 shrink-0 text-[12.5px] font-medium text-muted-foreground">
             {unit}
           </span>
           <button
             type="button"
             onClick={() => removeValue(index)}
             aria-label={`Verwijder ${rowLabel} ${value} ${unit}`}
-            className="bp-tap grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="bp-tap grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
       ))}
 
-      <div className="flex items-center gap-2 border-t border-border pt-3">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+      <div className="flex items-center gap-2 border-t border-border pt-2">
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
           <Plus className="h-4 w-4" />
         </div>
         <input
@@ -534,43 +514,18 @@ function ValueListEditor({
             }
           }}
           placeholder={`${newLabel} (bijv. 6.5)`}
-          className="h-12 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-center text-[13.5px] font-semibold tabular-nums outline-none placeholder:font-normal placeholder:text-muted-foreground/70 focus:ring-2 focus:ring-ring"
+          className={`${FIELD_INPUT} min-w-0 flex-1 text-center font-semibold tabular-nums placeholder:font-normal placeholder:text-muted-foreground/70`}
           aria-label={newLabel}
         />
-        <span className="w-10 shrink-0 text-[13px] font-medium text-muted-foreground">{unit}</span>
+        <span className="w-8 shrink-0 text-[12.5px] font-medium text-muted-foreground">{unit}</span>
         <button
           type="button"
           onClick={addValue}
           disabled={addDisabled}
-          className="bp-tap inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bp-tap inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-glow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="h-4 w-4" /> Toevoegen
         </button>
-      </div>
-    </div>
-  );
-}
-
-function SettingRow({
-  icon: Icon,
-  label,
-  children,
-  chevron,
-}: {
-  icon: typeof Mail;
-  label: string;
-  children?: ReactNode;
-  chevron?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-3 p-4">
-      <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary-soft text-primary">
-        <Icon className="h-4 w-4" />
-      </div>
-      <div className="min-w-0 flex-1 text-[14px] font-semibold">{label}</div>
-      <div className="flex min-w-0 items-center gap-2">
-        {children}
-        {chevron && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
       </div>
     </div>
   );

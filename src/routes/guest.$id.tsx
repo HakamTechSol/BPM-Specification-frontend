@@ -6,7 +6,8 @@ import {
   resetPitchError,
   type GuestPitchStatus,
 } from "@/lib/api";
-import { StatusIcon, Card, SectionLabel, EmptyState } from "@/components/bp";
+import { Card, SectionLabel, EmptyState } from "@/components/bp";
+import { PitchInfo } from "@/components/pitch-info";
 import { useGuestTheme } from "@/hooks/use-guest-theme";
 import {
   Zap,
@@ -74,7 +75,6 @@ function GuestScreen() {
   const [status, setStatus] = useState<GuestPitchStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [pitchId, setPitchId] = useState<number | null>(null);
   const [resetCooldown, setResetCooldown] = useState<number>(0);
   const [resetSuccess, setResetSuccess] = useState(false);
@@ -112,7 +112,6 @@ function GuestScreen() {
         const data = await getGuestPitchStatus(pitchId!);
         if (!cancelled) {
           setStatus(data);
-          setLastUpdated(new Date());
           setLoading(false);
         }
       } catch {
@@ -129,13 +128,6 @@ function GuestScreen() {
       clearInterval(interval);
     };
   }, [pitchId]);
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      setLastUpdated(new Date());
-    }, 5000);
-    return () => clearInterval(t);
-  }, []);
 
   // Countdown timer for reset cooldown
   useEffect(() => {
@@ -185,9 +177,7 @@ function GuestScreen() {
     );
   }
 
-  const { pitchName, veldNaam, gewenst, maxAmperage, kwhtot, iverb, errorcode } = status;
-  const powerOn = gewenst === 1;
-  const timeSinceUpdate = Math.floor((Date.now() - lastUpdated.getTime()) / 1000);
+  const { pitchName, veldNaam, kwhtot, reservation, errorcode } = status;
   const canReset = errorcode === 1 && resetCooldown === 0;
 
   return (
@@ -219,113 +209,25 @@ function GuestScreen() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-[22px] font-semibold tracking-tight leading-tight">
-              {veldNaam ? `${veldNaam} ` : ""} 
+              {veldNaam ? `${veldNaam} ` : ""}
               {pitchName}
             </h1>
           </div>
         </div>
 
-        <Card className="overflow-hidden">
-          <div className="p-3">
-            <div className="flex items-center gap-2.5">
-              <StatusIcon status={powerOn ? "on" : "off"} className="h-11 w-11" />
-              <div className="flex items-baseline gap-1">
-                <span className="text-[36px] font-semibold leading-none tracking-tight tabular-nums">
-                  {powerOn ? "Aan" : "Uit"}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-3 text-center">
-              <div className="rounded-xl bg-muted/50 p-2.5">
-                <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                  Huidige Stroom
-                </div>
-                <div className="mt-1 text-[20px] font-semibold tabular-nums">
-                  {typeof iverb === "number" && iverb >= 0 ? `${(iverb / 100).toFixed(1)} A` : "—"}
-                </div>
-              </div>
-              <div className="rounded-xl bg-muted/50 p-2.5">
-                <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                  Max Stroom
-                </div>
-                <div className="mt-1 text-[20px] font-semibold tabular-nums">{maxAmperage} A</div>
-              </div>
-            </div>
-
-            <div className="mt-2 flex items-center justify-end text-[11px] text-muted-foreground">
-              {/* <div className="flex items-center gap-1">
-                <RefreshCw className="h-3 w-3" />
-                {timeSinceUpdate < 60
-                  ? `${timeSinceUpdate}s geleden`
-                  : `${Math.floor(timeSinceUpdate / 60)}m geleden`}
-              </div> */}
-            </div>
-          </div>
-        </Card>
-
-        <SectionLabel>Verbruik</SectionLabel>
-        <Card className="overflow-hidden">
-          <div className="px-3 py-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-[13px] text-muted-foreground">Meterstand totaal</span>
-              <span className="text-[15px] font-semibold tabular-nums">
-                {Number(kwhtot).toFixed(2)}{" "}
-                <span className="text-[11px] font-medium text-muted-foreground">kWh</span>
-              </span>
-            </div>
-
-            {status.reservation && status.reservation.eStart != null && (
-              <>
-                <div className="mt-2 flex items-baseline justify-between gap-3">
-                  <span className="text-[13px] text-muted-foreground">
-                    Meterstand bij start
-                    <span className="ml-1.5 text-[11px] text-muted-foreground/70">
-                      {new Date(status.reservation.checkIn).toLocaleDateString("nl-NL", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </span>
-                  <span className="text-[15px] font-semibold tabular-nums">
-                    {Number(status.reservation.eStart).toFixed(2)}{" "}
-                    <span className="text-[11px] font-medium text-muted-foreground">kWh</span>
-                  </span>
-                </div>
-
-                <div className="my-2.5 border-t border-border" />
-
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-[13px] font-semibold">Verbruikt</span>
-                  <span className="text-[16px] font-bold tabular-nums text-success">
-                    {Math.max(
-                      0,
-                      Number(kwhtot) - Number(status.reservation.eStart),
-                    ).toFixed(2)}{" "}
-                    <span className="text-[11px] font-medium">kWh</span>
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
-        </Card>
+        <PitchInfo pitch={status} />
 
         <SectionLabel>Reservering</SectionLabel>
-        {status.reservation ? (
+        {reservation ? (
           <Card className="overflow-hidden">
             <div className="divide-y divide-border">
-              {status.reservation.reserveringNummer && (
+              {reservation.reserveringNummer && (
                 <div className="flex items-center justify-between px-3 py-2.5">
                   <span className="text-[12px] text-muted-foreground">Reserveringsnr.</span>
-                  <span className="text-[13px] font-medium">
-                    {status.reservation.reserveringNummer}
-                  </span>
+                  <span className="text-[13px] font-medium">{reservation.reserveringNummer}</span>
                 </div>
               )}
-              {status.reservation.usageLimit != null && (
+              {reservation.usageLimit != null && (
                 <div className="flex items-center justify-between px-3 py-2.5">
                   <div>
                     <div className="text-[12px] text-muted-foreground">Verbruikslimiet</div>
@@ -334,7 +236,7 @@ function GuestScreen() {
                     </div>
                   </div>
                   <span className="text-[13px] font-medium tabular-nums">
-                    {status.reservation.usageLimit} kWh
+                    {reservation.usageLimit} kWh
                   </span>
                 </div>
               )}

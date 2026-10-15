@@ -80,7 +80,7 @@ function MaintenancePage() {
       <ManagerLayout title="Onderhoud" subtitle="Systeemdiagnose">
         <ErrorState
           title={pageError}
-          description="Kan pitch-gegevens niet laden. Controleer de verbinding."
+          description="Kan plaatsgegevens niet laden. Controleer de verbinding."
           onRetry={() => { setPageError(null); setLoadingPitches(true); window.location.reload(); }}
         />
       </ManagerLayout>

@@ -99,6 +99,21 @@ async function chooseAfstand(user: ReturnType<typeof userEvent.setup>, label: st
   await user.click(within(dialog).getByRole("button", { name: /bevestigen/i }));
 }
 
+describe("pitch detail — document title", () => {
+  it("names the page 'Plaats', not 'Pitch'", () => {
+    const head = (
+      Route as unknown as {
+        head: (ctx: { params: { id: string } }) => { meta: { title?: string }[] };
+      }
+    ).head;
+
+    const meta = head({ params: { id: "77" } }).meta;
+
+    expect(meta[0].title).toBe("Plaats 77 · BluePlug");
+    expect(meta.map((m) => m.title ?? m)).not.toContain("Pitch 77 · BluePlug");
+  });
+});
+
 describe("pitch detail — initial state", () => {
   it("starts with Opslaan and Annuleren disabled and the saved values shown", async () => {
     mount();
@@ -161,44 +176,159 @@ describe("pitch detail — Gratis verbruik draft + cancel", () => {
   });
 });
 
-describe("pitch detail — Afstandbesturing draft + cancel", () => {
-  it("reverts to Lokaal and disables Opslaan after choosing Afstand then cancelling", async () => {
+describe("pitch detail — Afstandbesturing is persisted on confirm", () => {
+  it("stores the choice immediately and leaves Opslaan grey", async () => {
     const user = userEvent.setup();
     mount();
     await ready();
 
     await chooseAfstand(user, "Afstand");
+
+    // Persisted right away: no second click on Opslaan needed.
+    await waitFor(() =>
+      expect(triggerSync).toHaveBeenCalledWith({
+        pitchId: 85,
+        action: "set_afstandbesturing",
+        value: 1,
+      }),
+    );
+    expect(triggerSync).toHaveBeenCalledTimes(1);
     expect(isSelected(afstandChip("Afstand"))).toBe(true);
-    expect(opslaan()).toBeEnabled();
-    expect(triggerSync).not.toHaveBeenCalled();
-
-    await user.click(annuleren());
-
-    expect(isSelected(afstandChip("Lokaal"))).toBe(true);
-    expect(isSelected(afstandChip("Afstand"))).toBe(false);
     expect(opslaan()).toBeDisabled();
     expect(annuleren()).toBeDisabled();
-    expect(triggerSync).not.toHaveBeenCalled();
   });
 
-  it("re-enables the local controls again after cancelling a remote-mode draft", async () => {
+  it("stores 'Afstand aan' and locks the local controls", async () => {
     const user = userEvent.setup();
     mount();
     await ready();
 
-    // Amps are editable while Lokaal.
     expect(ampChip(8)).toBeEnabled();
 
     await chooseAfstand(user, "Afstand aan");
-    // Drafting remote mode previews the restriction.
+
+    await waitFor(() =>
+      expect(triggerSync).toHaveBeenCalledWith({
+        pitchId: 85,
+        action: "set_afstandbesturing",
+        value: 3,
+      }),
+    );
+    expect(isSelected(afstandChip("Afstand aan"))).toBe(true);
     expect(ampChip(8)).toBeDisabled();
     expect(freeChip(4)).toBeDisabled();
+  });
 
-    await user.click(annuleren());
+  it("releases remote control immediately when switching back to Lokaal", async () => {
+    const user = userEvent.setup();
+    getAllPitches.mockResolvedValue({ pitches: [pitch({ afstandbesturing: 1 })] });
+    mount();
+    await ready();
+
+    expect(isSelected(afstandChip("Afstand"))).toBe(true);
+    expect(ampChip(8)).toBeDisabled();
+
+    await chooseAfstand(user, "Lokaal");
+
+    await waitFor(() =>
+      expect(triggerSync).toHaveBeenCalledWith({
+        pitchId: 85,
+        action: "set_afstandbesturing",
+        value: 0,
+      }),
+    );
+    expect(triggerSync).toHaveBeenCalledTimes(1);
+    expect(isSelected(afstandChip("Lokaal"))).toBe(true);
+    expect(ampChip(8)).toBeEnabled();
+    expect(opslaan()).toBeDisabled();
+  });
+
+  it("sends nothing when the dialog is cancelled", async () => {
+    const user = userEvent.setup();
+    mount();
+    await ready();
+
+    await user.click(afstandChip("Afstand"));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: /annuleren/i }));
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+
+    expect(triggerSync).not.toHaveBeenCalled();
+    expect(isSelected(afstandChip("Lokaal"))).toBe(true);
+    expect(isSelected(afstandChip("Afstand"))).toBe(false);
+    expect(opslaan()).toBeDisabled();
+  });
+
+  it("flushes pending local edits before entering remote mode", async () => {
+    const user = userEvent.setup();
+    mount();
+    await ready();
+
+    // A local edit that the backend would reject once remote control is on.
+    await user.click(ampChip(8));
+    await chooseAfstand(user, "Afstand");
+
+    await waitFor(() => expect(triggerSync).toHaveBeenCalledTimes(2));
+    expect(triggerSync).toHaveBeenNthCalledWith(1, {
+      pitchId: 85,
+      action: "set_amperage",
+      value: 8,
+    });
+    expect(triggerSync).toHaveBeenNthCalledWith(2, {
+      pitchId: 85,
+      action: "set_afstandbesturing",
+      value: 1,
+    });
+    // Both are stored, so nothing is left pending.
+    await waitFor(() => expect(opslaan()).toBeDisabled());
+    expect(annuleren()).toBeDisabled();
+  });
+
+  it("still shows the stored mode after a reload", async () => {
+    const user = userEvent.setup();
+    const first = mount();
+    await ready();
+
+    await chooseAfstand(user, "Afstand");
+    await waitFor(() => expect(triggerSync).toHaveBeenCalledTimes(1));
+    first.unmount();
+
+    // A reload re-seeds from the API, which now reports the stored value.
+    getAllPitches.mockResolvedValue({ pitches: [pitch({ afstandbesturing: 1 })] });
+    const second = mount();
+    await ready();
+
+    expect(isSelected(afstandChip("Afstand"))).toBe(true);
+    expect(isSelected(afstandChip("Lokaal"))).toBe(false);
+    expect(ampChip(8)).toBeDisabled();
+    expect(opslaan()).toBeDisabled();
+
+    // …and back to Lokaal, which is stored just as durably.
+    await chooseAfstand(user, "Lokaal");
+    await waitFor(() => expect(triggerSync).toHaveBeenCalledTimes(2));
+    second.unmount();
+
+    getAllPitches.mockResolvedValue({ pitches: [pitch({ afstandbesturing: 0 })] });
+    mount();
+    await ready();
 
     expect(isSelected(afstandChip("Lokaal"))).toBe(true);
     expect(ampChip(8)).toBeEnabled();
-    expect(freeChip(4)).toBeEnabled();
+  });
+
+  it("rolls the selection back and reports the error when the call fails", async () => {
+    const user = userEvent.setup();
+    triggerSync.mockRejectedValueOnce(new Error("backend down"));
+    mount();
+    await ready();
+
+    await chooseAfstand(user, "Afstand");
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/backend down/i));
+    expect(isSelected(afstandChip("Lokaal"))).toBe(true);
+    expect(isSelected(afstandChip("Afstand"))).toBe(false);
+    // The failed choice is not left behind as a pending change.
     expect(opslaan()).toBeDisabled();
   });
 });
@@ -211,7 +341,6 @@ describe("pitch detail — cancel reverts every control at once", () => {
 
     await user.click(ampChip(8));
     await user.click(freeChip(2));
-    await chooseAfstand(user, "Afstand");
     await user.click(screen.getByRole("switch"));
 
     expect(opslaan()).toBeEnabled();
@@ -286,29 +415,6 @@ describe("pitch detail — Opslaan sends only what changed", () => {
       value: 4,
     });
     await waitFor(() => expect(opslaan()).toBeDisabled());
-  });
-
-  it("releases remote control before the local change when saving back to Lokaal", async () => {
-    const user = userEvent.setup();
-    getAllPitches.mockResolvedValue({ pitches: [pitch({ afstandbesturing: 1 })] });
-    mount();
-    await ready();
-
-    expect(isSelected(afstandChip("Afstand"))).toBe(true);
-    expect(ampChip(8)).toBeDisabled();
-
-    await chooseAfstand(user, "Lokaal");
-    await user.click(opslaan());
-
-    const dialog = await screen.findByRole("alertdialog");
-    await user.click(within(dialog).getByRole("button", { name: /^opslaan$/i }));
-
-    await waitFor(() => expect(triggerSync).toHaveBeenCalledTimes(1));
-    expect(triggerSync).toHaveBeenCalledWith({
-      pitchId: 85,
-      action: "set_afstandbesturing",
-      value: 0,
-    });
   });
 
   it("keeps the draft and leaves Opslaan enabled when the save fails", async () => {

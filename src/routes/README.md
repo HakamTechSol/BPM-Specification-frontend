@@ -10,7 +10,9 @@ is `src/routes/__root.tsx`.
 | File | URL |
 | --- | --- |
 | `index.tsx` | `/` |
-| `about.tsx` | `/about` |
+| `about.tsx` | `/about` (layout: renders `<Outlet />`, no UI of its own) |
+| `about/index.tsx` | `/about` |
+| `about/contact.tsx` | `/about/contact` |
 | `users/index.tsx` | `/users` |
 | `users/$id.tsx` | `/users/:id` (dynamic — bare `$`, no curly braces) |
 | `posts/{-$category}.tsx` | `/posts/:category?` (optional segment) |
@@ -19,3 +21,7 @@ is `src/routes/__root.tsx`.
 | `__root.tsx` | app shell — wraps every page; preserve `<Outlet />` |
 
 `routeTree.gen.ts` is auto-generated. Don't edit it by hand.
+
+A route file that has children **must** render `<Outlet />`, otherwise the
+child route never appears. `about.tsx` is the layout for `/about/*` and
+`about/index.tsx` is the list at `/about` itself.

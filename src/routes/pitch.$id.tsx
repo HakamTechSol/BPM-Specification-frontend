@@ -9,6 +9,7 @@ import {
   LoadingMetricsCard,
   SwitchRow,
 } from "@/components/bp";
+import { PitchInfo } from "@/components/pitch-info";
 import { getAllPitches, triggerSync, getSettings, type PitchSummary } from "@/lib/api";
 import {
   changedFields,
@@ -19,26 +20,14 @@ import {
   type PitchSettings,
   type PitchSettingKey,
 } from "@/lib/pitchSettings";
-import {
-  ChevronLeft,
-  Power,
-  Radio,
-  Zap,
-  Check,
-  LogIn,
-  LogOut,
-  Save,
-  Loader2,
-  Calendar,
-  X,
-} from "lucide-react";
+import { ChevronLeft, Power, Radio, Zap, LogIn, LogOut, Save, Calendar, X } from "lucide-react";
 
 export const Route = createFileRoute("/pitch/$id")({
   component: PitchDetail,
   head: ({ params }) => ({
     meta: [
-      { title: `Pitch ${params.id} · BluePlug` },
-      { name: "description", content: "Control power and view usage for this pitch." },
+      { title: `Plaats ${params.id} · BluePlug` },
+      { name: "description", content: "Control power and view usage for this plaats." },
     ],
   }),
 });
@@ -80,6 +69,10 @@ function PitchDetail() {
   // Target value for the "Afstandbesturing" selector awaiting confirmation;
   // null = no change pending.
   const [pendingAfstand, setPendingAfstand] = useState<number | null>(null);
+  // True while the confirmed afstandbesturing value is being persisted.
+  const [applyingAfstand, setApplyingAfstand] = useState(false);
+  // Inline error for a failed afstandbesturing change.
+  const [afstandError, setAfstandError] = useState<string | null>(null);
 
   const hasChanges = saved !== null && draft !== null && settingsHaveChanges(saved, draft);
   // Remote/cloud control active (1 = "Afstand", 3 = "Afstand aan") disables
@@ -102,6 +95,79 @@ function PitchDetail() {
   function cancelChanges() {
     setDraft(saved);
     setPendingAfstand(null);
+    setAfstandError(null);
+  }
+
+  /**
+   * Afstandbesturing is the one setting that is persisted the moment the
+   * manager confirms it: the backend gates every other local control on it, so
+   * a half-applied mode would be misleading. The value is shown optimistically
+   * and rolled back if the API call fails; on success it becomes the saved
+   * baseline too, so Opslaan stays grey.
+   */
+  async function applyAfstand(next: number) {
+    if (!pitch || !saved || !draft) return;
+    const previous = saved.afstand;
+
+    setPendingAfstand(null);
+    setAfstandError(null);
+    updateDraft({ afstand: next });
+    setApplyingAfstand(true);
+
+    try {
+      // Entering remote mode makes the backend reject local actions, so any
+      // pending local draft edits are flushed first — the ordering the save
+      // flow used when it sent the afstandbesturing action last.
+      const local = next > 0 ? changedFields(saved, draft).filter((key) => key !== "afstand") : [];
+      for (const key of local) {
+        if (key === "power") {
+          await triggerSync({ pitchId: pitch.pitchId, action: "toggle_power" });
+        } else if (key === "maxAmp") {
+          await triggerSync({
+            pitchId: pitch.pitchId,
+            action: "set_amperage",
+            value: draft.maxAmp,
+          });
+        } else if (key === "freeUsage") {
+          await triggerSync({
+            pitchId: pitch.pitchId,
+            action: "set_free_usage",
+            value: draft.freeUsage,
+          });
+        }
+      }
+
+      await triggerSync({
+        pitchId: pitch.pitchId,
+        action: "set_afstandbesturing",
+        value: next,
+      });
+
+      // Persisted: the draft becomes the saved baseline, so this field (and
+      // anything flushed above) leaves no pending change behind.
+      const persisted: PitchSettings = { ...draft, afstand: next };
+      setSaved(persisted);
+      setDraft(persisted);
+    } catch (err) {
+      console.error("Afstandbediening mislukt:", err);
+      setAfstandError(err instanceof Error ? err.message : "Afstandbediening wijzigen is mislukt");
+      // Re-read the server so the selection (and anything already flushed)
+      // matches what is actually stored.
+      try {
+        const updated = await getAllPitches();
+        const refreshed = updated.pitches.find((p) => p.pitchId === pitch.pitchId);
+        if (refreshed) {
+          setPitch(refreshed);
+          applyServerSettings(settingsFromPitch(refreshed));
+          return;
+        }
+      } catch {
+        // Fall through to the local rollback below.
+      }
+      updateDraft({ afstand: previous });
+    } finally {
+      setApplyingAfstand(false);
+    }
   }
 
   useEffect(() => {
@@ -151,12 +217,12 @@ function PitchDetail() {
 
   if (error || !pitch || !saved || !draft) {
     return (
-      <ManagerLayout title="Pitch niet gevonden">
+      <ManagerLayout title="Plaats niet gevonden">
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="grid h-16 w-16 place-items-center rounded-2xl bg-muted text-muted-foreground">
             <Zap className="h-8 w-8" strokeWidth={1.5} />
           </div>
-          <h3 className="mt-4 text-[16px] font-semibold tracking-tight">Pitch niet gevonden</h3>
+          <h3 className="mt-4 text-[16px] font-semibold tracking-tight">Plaats niet gevonden</h3>
           <p className="mt-1.5 max-w-xs text-[13px] text-muted-foreground">
             Deze plaats bestaat niet of is verwijderd.
           </p>
@@ -183,7 +249,7 @@ function PitchDetail() {
         </Link>
       }
     >
-      <div className="flex flex-col gap-3 lg:gap-4 max-w-4xl mx-auto w-full pb-32 sm:pb-24 lg:pb-20">
+      <div className="flex flex-col gap-3 lg:gap-4 max-w-4xl mx-auto w-full pb-8">
         <Link
           to="/dashboard"
           className="bp-tap -mt-1 mb-1 inline-flex h-9 items-center gap-1 text-[13px] font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden"
@@ -200,56 +266,37 @@ function PitchDetail() {
           </>
         ) : (
           <>
-            <Card className="mt-1.5 overflow-hidden">
-              <SwitchRow
-                icon={Power}
-                label="Elektriciteit"
-                description={
-                  remoteActive
-                    ? "Stopcontact wordt beheerd via afstandbediening"
-                    : draft.power
-                      ? "Stopcontact is ingeschakeld"
-                      : "Stopcontact is uit"
-                }
-                checked={draft.power}
-                onCheckedChange={(v) => updateDraft({ power: v })}
-                iconBg={
-                  draft.power ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"
-                }
-                disabled={remoteActive}
-              />
-              <div className="border-t border-border px-3 py-1.5">
-                <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Afstandbesturing
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {AFSTAND_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => {
-                        if (opt.value === draft.afstand) return;
-                        setPendingAfstand(opt.value);
-                      }}
-                      className={`bp-tap flex h-9 items-center justify-center rounded-lg border px-3 text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                        draft.afstand === opt.value
-                          ? "border-primary bg-primary text-primary-foreground shadow-glow"
-                          : "border-border bg-card text-foreground hover:border-primary/40"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="border-t border-border px-3 py-1.5">
-                <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Huidige stroom
-                </div>
-                <div className="pb-1 text-[18px] font-semibold tabular-nums">
-                  {typeof pitch.iverb === "number" && pitch.iverb >= 0
-                    ? `${(pitch.iverb / 100).toFixed(2)} A`
-                    : "—"}
-                </div>
+            {/* Read-only pitch info; the exact same block the guest screen shows. */}
+            <PitchInfo pitch={pitch} />
+
+            <SectionLabel>Beheer</SectionLabel>
+            <Card className="overflow-hidden">
+              <div className="p-3">
+                {draft.power ? (
+                  <button
+                    onClick={() => setConfirm("checkout")}
+                    disabled={remoteActive}
+                    className={`bp-tap flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      remoteActive
+                        ? "cursor-not-allowed bg-muted text-muted-foreground"
+                        : "border border-border bg-card text-destructive hover:bg-destructive-soft"
+                    }`}
+                  >
+                    <LogOut className="h-4 w-4" /> Uitchecken
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setConfirm("checkin")}
+                    disabled={remoteActive}
+                    className={`bp-tap flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      remoteActive
+                        ? "cursor-not-allowed bg-muted text-muted-foreground"
+                        : "bg-success text-white hover:bg-success/90"
+                    }`}
+                  >
+                    <LogIn className="h-4 w-4" /> Inchecken
+                  </button>
+                )}
               </div>
               <div className="border-t border-border px-3 py-1.5">
                 <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -315,56 +362,85 @@ function PitchDetail() {
                   ))}
                 </div>
               </div>
-            </Card>
-
-            <SectionLabel>Verbruik</SectionLabel>
-            <Card className="overflow-hidden">
-              <div className="px-3 py-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-[13px] text-muted-foreground">Meterstand totaal</span>
-                  <span className="text-[15px] font-semibold tabular-nums">
-                    {Number(pitch.kwhtot).toFixed(2)}{" "}
-                    <span className="text-[11px] font-medium text-muted-foreground">kWh</span>
-                  </span>
+              <div className="border-t border-border px-3 py-1.5">
+                <div className="mt-2 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Afstandbesturing
                 </div>
-
-                {pitch.reservation && pitch.reservation.eStart != null && (
-                  <>
-                    <div className="mt-2 flex items-baseline justify-between gap-3">
-                      <span className="text-[13px] text-muted-foreground">
-                        Meterstand bij start
-                        <span className="ml-1.5 text-[11px] text-muted-foreground/70">
-                          {new Date(pitch.reservation.checkIn).toLocaleDateString("nl-NL", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </span>
-                      <span className="text-[15px] font-semibold tabular-nums">
-                        {Number(pitch.reservation.eStart).toFixed(2)}{" "}
-                        <span className="text-[11px] font-medium text-muted-foreground">kWh</span>
-                      </span>
-                    </div>
-
-                    <div className="my-2.5 border-t border-border" />
-
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-[13px] font-semibold">Verbruikt</span>
-                      <span className="text-[16px] font-bold tabular-nums text-success">
-                        {Math.max(
-                          0,
-                          Number(pitch.kwhtot) - Number(pitch.reservation.eStart),
-                        ).toFixed(2)}{" "}
-                        <span className="text-[11px] font-medium">kWh</span>
-                      </span>
-                    </div>
-                  </>
+                <div className="flex flex-wrap gap-1.5">
+                  {AFSTAND_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      disabled={applyingAfstand}
+                      onClick={() => {
+                        if (opt.value === draft.afstand || applyingAfstand) return;
+                        setAfstandError(null);
+                        setPendingAfstand(opt.value);
+                      }}
+                      className={`bp-tap flex h-9 items-center justify-center rounded-lg border px-3 text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed ${
+                        draft.afstand === opt.value
+                          ? "border-primary bg-primary text-primary-foreground shadow-glow"
+                          : "border-border bg-card text-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[11.5px] leading-snug text-muted-foreground">
+                  {applyingAfstand
+                    ? "Afstandbediening wordt opgeslagen..."
+                    : "Wordt direct opgeslagen na bevestigen."}
+                </p>
+                {afstandError && (
+                  <p className="mt-1 text-[12px] font-medium text-destructive" role="alert">
+                    Afstandbediening wijzigen mislukt: {afstandError}
+                  </p>
                 )}
               </div>
+              <SwitchRow
+                icon={Power}
+                label="Elektriciteit"
+                description={
+                  remoteActive
+                    ? "Stopcontact wordt beheerd via afstandbediening"
+                    : draft.power
+                      ? "Stopcontact is ingeschakeld"
+                      : "Stopcontact is uit"
+                }
+                checked={draft.power}
+                onCheckedChange={(v) => updateDraft({ power: v })}
+                iconBg={
+                  draft.power ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"
+                }
+                disabled={remoteActive}
+              />
             </Card>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={cancelChanges}
+                disabled={!hasChanges}
+                aria-label="Annuleren"
+                className={`bp-tap flex h-11 items-center justify-center gap-1.5 rounded-xl border text-[13.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-[14px] ${
+                  hasChanges
+                    ? "border-border bg-card text-foreground hover:bg-muted"
+                    : "cursor-not-allowed border-transparent bg-muted text-muted-foreground"
+                }`}
+              >
+                <X className="h-4 w-4" /> Annuleren
+              </button>
+              <button
+                onClick={() => setConfirm("save")}
+                disabled={!hasChanges}
+                className={`bp-tap flex h-11 items-center justify-center gap-1.5 rounded-xl text-[13.5px] font-semibold shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-[14px] ${
+                  hasChanges
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                }`}
+              >
+                <Save className="h-4 w-4" /> Opslaan
+              </button>
+            </div>
 
             <SectionLabel>Reservering</SectionLabel>
             {pitch.reservation ? (
@@ -403,77 +479,6 @@ function PitchDetail() {
             )}
           </>
         )}
-      </div>
-
-      <div className="fixed bottom-20 lg:bottom-0 inset-x-0 lg:left-64 z-20 border-t border-border bg-background/95 backdrop-blur-xl pt-2 pb-2 px-5 lg:px-8">
-        <div className="mx-auto max-w-4xl">
-          {saving ? (
-            <div className="grid grid-cols-3 gap-2">
-              <div className="flex h-10 items-center justify-center rounded-xl bg-muted">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              </div>
-              <div className="flex h-10 items-center justify-center rounded-xl bg-muted">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              </div>
-              <div className="flex h-10 items-center justify-center rounded-xl bg-muted">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={cancelChanges}
-                  disabled={!hasChanges}
-                  aria-label="Annuleren"
-                  className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl border text-[12.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-[13.5px] ${
-                    hasChanges
-                      ? "border-border bg-card text-foreground hover:bg-muted"
-                      : "cursor-not-allowed border-transparent bg-muted text-muted-foreground"
-                  }`}
-                >
-                  <X className="h-4 w-4" /> Annuleren
-                </button>
-                <button
-                  onClick={() => setConfirm("save")}
-                  disabled={!hasChanges}
-                  className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-[13.5px] ${
-                    hasChanges
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                      : "bg-muted text-muted-foreground cursor-not-allowed"
-                  }`}
-                >
-                  <Save className="h-4 w-4" /> Opslaan
-                </button>
-                {draft.power ? (
-                  <button
-                    onClick={() => setConfirm("checkout")}
-                    disabled={remoteActive}
-                    className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-[13.5px] ${
-                      remoteActive
-                        ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground"
-                        : "border border-border bg-card text-destructive"
-                    }`}
-                  >
-                    <LogOut className="h-4 w-4" /> Uitchecken
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setConfirm("checkin")}
-                    disabled={remoteActive}
-                    className={`bp-tap flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-[13.5px] ${
-                      remoteActive
-                        ? "cursor-not-allowed bg-muted text-muted-foreground"
-                        : "bg-success text-white hover:bg-success/90"
-                    }`}
-                  >
-                    <LogIn className="h-4 w-4" /> Inchecken
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
       </div>
 
       <ConfirmDialog
@@ -619,7 +624,8 @@ function PitchDetail() {
           const next = pendingAfstand;
           setPendingAfstand(null);
           if (next === null) return;
-          updateDraft({ afstand: next });
+          // Persisted right away, not queued behind Opslaan.
+          void applyAfstand(next);
         }}
       />
     </ManagerLayout>
