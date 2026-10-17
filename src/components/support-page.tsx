@@ -1,17 +1,59 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { ManagerLayout } from "@/components/manager-layout";
 import { Card, SectionLabel } from "@/components/bp";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getSettings, type Eigenaar } from "@/lib/api";
-import { companyFields, supportPages, type SupportPageKey } from "@/content/about";
+import {
+  companyFields,
+  supportPages,
+  type ContentLink,
+  type SupportPageKey,
+} from "@/content/about";
 
 /** Resolves the `{dagen}` placeholder from the configured session duration. */
 function withDays(text: string, days: number | null): string {
   return days === null
     ? text.replaceAll("{dagen}", "ingestelde")
     : text.replaceAll("{dagen}", String(days));
+}
+
+/**
+ * Renders text with the section's tap targets (tel:, mailto:, …) as links. The
+ * text itself is copied verbatim; only the marked substrings become anchors.
+ */
+function withText(text: string, links?: ContentLink[]): ReactNode {
+  if (!links || links.length === 0) return text;
+
+  const nodes: ReactNode[] = [];
+  let rest = text;
+  let key = 0;
+
+  while (rest.length > 0) {
+    const next = links
+      .map((link) => ({ link, index: rest.indexOf(link.text) }))
+      .filter((candidate) => candidate.index >= 0)
+      .sort((a, b) => a.index - b.index)[0];
+
+    if (!next) {
+      nodes.push(rest);
+      break;
+    }
+    if (next.index > 0) nodes.push(rest.slice(0, next.index));
+    nodes.push(
+      <a
+        key={key++}
+        href={next.link.href}
+        className="font-medium text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {next.link.text}
+      </a>,
+    );
+    rest = rest.slice(next.index + next.link.text.length);
+  }
+
+  return nodes;
 }
 
 /** The rows of the live Bedrijf page, built from the settings and never invented. */
@@ -72,28 +114,33 @@ export function SupportPage({ pageKey }: { pageKey: SupportPageKey }) {
 
   return (
     <ManagerLayout title={page.heading} right={<ThemeToggle />}>
-      <div className="mx-auto w-full max-w-2xl">
+      {/* Extra bottom room so the fixed mobile navigation never covers the end
+          of a long text. */}
+      <div className="mx-auto w-full max-w-2xl pb-8">
         <Link
           to="/about"
           className="bp-tap -mt-1 mb-1 inline-flex h-9 items-center gap-1 text-[13px] font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ChevronLeft className="h-4 w-4" /> Terug naar Over ons
         </Link>
-        {page.concept && (
-          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-3.5 py-1 text-[11.5px] font-semibold text-warning">
-            <AlertTriangle className="h-3 w-3" /> Concepttekst
-          </p>
-        )}
+
+        {page.updated && <p className="mt-2 text-[13px] text-muted-foreground">{page.updated}</p>}
 
         {page.intro && (
-          <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
+          <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
             {withDays(page.intro, days)}
           </p>
         )}
 
-        {page.live === "eigenaar" ? (
+        {page.pending && !needsSettings ? (
+          <Card className="px-3.5 py-3 sm:px-4 sm:py-3.5">
+            <p className="text-[15px] leading-relaxed text-muted-foreground">{page.pending}</p>
+          </Card>
+        ) : page.live === "eigenaar" ? (
           <>
-            <SectionLabel>{page.sections[0]?.heading ?? "Gegevens"}</SectionLabel>
+            {(liveState !== "ready" || rows.length > 0) && (
+              <SectionLabel>{page.sections[0]?.heading ?? "Gegevens"}</SectionLabel>
+            )}
             <Card className="overflow-hidden">
               {liveState === "loading" && (
                 <div className="px-3.5 py-3 text-[14px] text-muted-foreground">Laden…</div>
@@ -101,9 +148,9 @@ export function SupportPage({ pageKey }: { pageKey: SupportPageKey }) {
               {liveState === "error" && (
                 <div className="px-3.5 py-3 text-[14px] text-destructive">{page.errorNote}</div>
               )}
-              {liveState === "ready" && rows.length === 0 && (
-                <div className="px-3.5 py-3 text-[14px] text-muted-foreground">
-                  {page.emptyNote}
+              {liveState === "ready" && rows.length === 0 && page.pending && (
+                <div className="px-3.5 py-3 text-[15px] leading-relaxed text-muted-foreground">
+                  {page.pending}
                 </div>
               )}
               {rows.length > 0 && (
@@ -128,16 +175,79 @@ export function SupportPage({ pageKey }: { pageKey: SupportPageKey }) {
             <div key={section.heading}>
               <SectionLabel>{section.heading}</SectionLabel>
               <Card className="px-3.5 py-3 sm:px-4 sm:py-3.5">
-                {section.paragraphs.map((paragraph, index) => (
+                {section.paragraphs?.map((paragraph, index) => (
                   <p
                     key={index}
-                    className={`text-[14px] leading-relaxed text-muted-foreground ${
-                      index > 0 ? "mt-2.5" : ""
+                    className={`text-[15px] leading-relaxed text-muted-foreground ${
+                      index > 0 ? "mt-3" : ""
                     }`}
                   >
-                    {withDays(paragraph, days)}
+                    {withText(withDays(paragraph, days), section.links)}
                   </p>
                 ))}
+
+                {section.bullets && section.bullets.length > 0 && (
+                  <ul className="mt-2.5 space-y-2">
+                    {section.bullets.map((bullet, index) => (
+                      <li
+                        key={index}
+                        className="flex gap-2.5 text-[15px] leading-relaxed text-muted-foreground"
+                      >
+                        <span
+                          aria-hidden
+                          className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/60"
+                        />
+                        <span className="min-w-0">
+                          {withText(withDays(bullet, days), section.links)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {section.fields && section.fields.length > 0 && (
+                  <div
+                    className={
+                      section.paragraphs || section.bullets?.length ? "mt-2.5 space-y-0.5" : ""
+                    }
+                  >
+                    {section.fields.map((field) => (
+                      <div
+                        key={field.label}
+                        className="flex flex-wrap items-baseline justify-between gap-x-3"
+                      >
+                        <span className="text-[14px] text-muted-foreground">{field.label}</span>
+                        {field.href ? (
+                          // Large tap target: elderly users must be able to hit it.
+                          <a
+                            href={field.href}
+                            className="inline-flex min-h-[40px] items-center break-all text-[15px] font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            {field.value}
+                          </a>
+                        ) : (
+                          <span className="min-w-0 break-words text-[15px] font-medium">
+                            {field.value}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {section.closing && section.closing.length > 0 && (
+                  <div className={section.bullets?.length || section.fields?.length ? "mt-3" : ""}>
+                    {section.closing.map((paragraph, index) => (
+                      <p
+                        key={index}
+                        className={`text-[15px] leading-relaxed text-muted-foreground ${
+                          index > 0 ? "mt-3" : ""
+                        }`}
+                      >
+                        {withText(withDays(paragraph, days), section.links)}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </Card>
             </div>
           ))

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 
 const getSettings = vi.fn();
 
@@ -163,17 +163,159 @@ describe.each(KEYS)("support page /about/%s", (key) => {
 });
 
 describe("contact page", () => {
-  it("explains how to reach support without inventing contact details", () => {
+  it("shows both blocks with the exact contact details", () => {
     render(<SupportPage pageKey="contact" />);
 
-    expect(screen.getByText(/Neem contact op met de camping/i)).toBeInTheDocument();
-    expect(screen.getByText(/Contactgegevens volgen/)).toBeInTheDocument();
-    // No phone numbers, e-mail addresses or response-time promises.
-    const text = document.body.textContent ?? "";
-    expect(text).not.toMatch(/\+31/);
-    expect(text).not.toMatch(/@/);
-    expect(text).not.toMatch(/binnen \d+ (uur|minuten)/i);
-    expect(text).not.toMatch(/Reactie binnen/);
+    expect(screen.getByRole("heading", { level: 1, name: "Contact opnemen" })).toBeInTheDocument();
+    expect(screen.getByText("van Heteren Recreatietechniek B.V.")).toBeInTheDocument();
+    expect(screen.getByText("Onderhoud software: BlueDelta b.v.")).toBeInTheDocument();
+
+    for (const value of [
+      "Boortorenweg 15",
+      "7554 RS",
+      "Hengelo",
+      "+31 (0)74-2045100",
+      "f.meijerman@vanheteren.com",
+      "J. Esvelt",
+      "+31 (0) 88 - 7733773",
+      "info@bluedelta.nl",
+    ]) {
+      expect(screen.getByText(value)).toBeInTheDocument();
+    }
+  });
+
+  it("makes the phone numbers and e-mail addresses tappable", () => {
+    render(<SupportPage pageKey="contact" />);
+
+    const links = screen
+      .getAllByRole("link")
+      .filter((a) => /^(tel|mailto):/.test(a.getAttribute("href") ?? ""));
+    const hrefs = links.map((a) => a.getAttribute("href"));
+
+    expect(hrefs).toEqual(
+      expect.arrayContaining([
+        "tel:+31742045100",
+        "mailto:f.meijerman@vanheteren.com",
+        "tel:+31887733773",
+        "mailto:info@bluedelta.nl",
+      ]),
+    );
+    // Numbers are shown exactly as written, only the href is normalised.
+    expect(screen.getByText("+31 (0)74-2045100")).toBeInTheDocument();
+    expect(screen.getByText("+31 (0) 88 - 7733773")).toBeInTheDocument();
+  });
+
+  it("gives the tap targets a comfortable height", () => {
+    render(<SupportPage pageKey="contact" />);
+
+    const tel = screen.getByRole("link", { name: "+31 (0)74-2045100" });
+    expect(tel.className).toContain("min-h-[40px]");
+  });
+
+  it("no longer shows the draft text or a Concepttekst label", () => {
+    render(<SupportPage pageKey="contact" />);
+
+    expect(screen.queryByText(/Contactgegevens volgen/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/plaatsnummer en wat u ziet/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Concepttekst")).not.toBeInTheDocument();
+  });
+});
+
+describe("privacy page (client text, verbatim)", () => {
+  it("shows the title, the update line and all ten numbered sections", () => {
+    render(<SupportPage pageKey="privacy" />);
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Privacyverklaring" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Laatst bijgewerkt: 10-07-2026")).toBeInTheDocument();
+
+    const headings = [
+      "1. Verwerkingsverantwoordelijke",
+      "2. Welke gegevens verwerken wij van u?",
+      "3. Waarom verwerken wij deze gegevens?",
+      "4. Grondslagen",
+      "5. Wie heeft toegang tot uw gegevens?",
+      "6. Bewaartermijnen",
+      "7. Beveiliging",
+      "8. Uw rechten",
+      "9. Klacht indienen",
+      "10. Wijzigingen",
+    ];
+    for (const heading of headings) {
+      expect(screen.getByText(heading)).toBeInTheDocument();
+    }
+  });
+
+  it("renders the lists of sections 2 to 8 as real bullet lists", () => {
+    render(<SupportPage pageKey="privacy" />);
+
+    const bulletCounts = [5, 5, 3, 3, 4, 4, 5];
+    const lists = screen.getAllByRole("list");
+
+    expect(lists).toHaveLength(bulletCounts.length);
+    expect(lists.map((list) => within(list).getAllByRole("listitem").length)).toEqual(bulletCounts);
+  });
+
+  it("keeps the company details verbatim, including the placeholder", () => {
+    render(<SupportPage pageKey="privacy" />);
+
+    expect(screen.getByText("BlueDelta b.v.")).toBeInTheDocument();
+    expect(screen.getByText("Industrieweg 26, 2254 AE, Voorschoten")).toBeInTheDocument();
+    expect(screen.getByText("09117157")).toBeInTheDocument();
+    expect(
+      screen.getByText(/systeembeheerders van \[Naam onderneming\] hebben inzage/),
+    ).toBeInTheDocument();
+  });
+
+  it("makes info@bluedelta.nl a mailto link wherever it appears", () => {
+    render(<SupportPage pageKey="privacy" />);
+
+    const mailto = screen
+      .getAllByRole("link")
+      .filter((a) => a.getAttribute("href") === "mailto:info@bluedelta.nl");
+
+    // Section 1 (Contact) and section 8 (Verzoeken).
+    expect(mailto).toHaveLength(2);
+    for (const link of mailto) {
+      expect(link.textContent).toBe("info@bluedelta.nl");
+    }
+
+    // The sentence in section 8 keeps its wording, only the address is a link.
+    const sentence = [...document.querySelectorAll("p")].find((p) =>
+      p.textContent?.startsWith("Verzoeken kunt u indienen via"),
+    );
+    expect(sentence?.textContent).toBe(
+      "Verzoeken kunt u indienen via info@bluedelta.nl. Wij reageren binnen vier weken.",
+    );
+    expect(sentence?.querySelector("a")?.getAttribute("href")).toBe("mailto:info@bluedelta.nl");
+  });
+
+  it("keeps the sentences that come after a bullet list below it", () => {
+    render(<SupportPage pageKey="privacy" />);
+
+    const paragraphs = [...document.querySelectorAll("p")].map((p) => p.textContent ?? "");
+    const closing5 = paragraphs.findIndex((t) => t.startsWith("Uw gegevens worden niet verkocht"));
+    const lastBullet5 = paragraphs.findIndex((t) =>
+      t.startsWith("Wettelijke autoriteiten: alleen indien"),
+    );
+    const closing8 = paragraphs.findIndex((t) => t.startsWith("Verzoeken kunt u indienen"));
+    const lastBullet8 = paragraphs.findIndex((t) =>
+      t.startsWith("Uw accountgegevens in gestructureerde vorm"),
+    );
+
+    expect(closing5).toBeGreaterThan(lastBullet5);
+    expect(closing8).toBeGreaterThan(lastBullet8);
+  });
+
+  it("is readable body text and no longer marked as a draft", () => {
+    render(<SupportPage pageKey="privacy" />);
+
+    expect(screen.queryByText("Concepttekst")).not.toBeInTheDocument();
+
+    const paragraph = screen.getByText(/Deze privacyverklaring is bestemd voor gebruikers/);
+    expect(paragraph.className).toContain("text-[15px]");
+    expect(paragraph.className).toContain("leading-relaxed");
   });
 });
 
@@ -205,8 +347,46 @@ describe("bedrijf page", () => {
       expect(screen.queryByText(label)).not.toBeInTheDocument();
     }
   });
+});
 
-  it("says so when there is no company data at all", async () => {
+describe("privacy and terms pages", () => {
+  it("shows only the neutral line on the terms page, without a draft label", () => {
+    render(<SupportPage pageKey="voorwaarden" />);
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Gebruiksvoorwaarden" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("De gebruiksvoorwaarden worden binnenkort toegevoegd."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Concepttekst")).not.toBeInTheDocument();
+    // No draft legal text of our own is left behind.
+    expect(screen.queryByText(/wachttijd/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/verantwoordelijk/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/op afstand worden bestuurd/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the title and the back button on the terms page", () => {
+    render(<SupportPage pageKey="voorwaarden" />);
+
+    expect(screen.getByRole("link", { name: /terug naar over ons/i })).toHaveAttribute(
+      "href",
+      "/about",
+    );
+  });
+
+  it("marks both texts as pending in the content file", () => {
+    expect(supportPages.voorwaarden.pending).toBe(
+      "De gebruiksvoorwaarden worden binnenkort toegevoegd.",
+    );
+    expect(supportPages.bedrijf.pending).toBe("De bedrijfsgegevens worden binnenkort toegevoegd.");
+    expect(supportPages.voorwaarden.sections).toEqual([]);
+    expect(supportPages.bedrijf.sections).toEqual([]);
+  });
+});
+
+describe("bedrijf page without company data", () => {
+  it("shows the neutral line instead of our own text", async () => {
     getSettings.mockResolvedValue({
       id: 1,
       stroominstelling: [],
@@ -217,40 +397,13 @@ describe("bedrijf page", () => {
     render(<SupportPage pageKey="bedrijf" />);
 
     await waitFor(() =>
-      expect(screen.getByText(supportPages.bedrijf.emptyNote as string)).toBeInTheDocument(),
+      expect(
+        screen.getByText("De bedrijfsgegevens worden binnenkort toegevoegd."),
+      ).toBeInTheDocument(),
     );
-  });
-});
-
-describe("privacy and terms pages", () => {
-  it("fill in the configured session duration instead of a guess", async () => {
-    render(<SupportPage pageKey="privacy" />);
-
-    await waitFor(() => expect(screen.getByText(/sessieduur van 14 dagen/)).toBeInTheDocument());
-    expect(screen.queryByText(/\{dagen\}/)).not.toBeInTheDocument();
-  });
-
-  it.each(["privacy", "voorwaarden"] as const)("marks the %s page as a draft", (key) => {
-    render(<SupportPage pageKey={key} />);
-
-    expect(screen.getByText("Concepttekst")).toBeInTheDocument();
-  });
-
-  it("covers the topics the campsite has to agree on", () => {
-    const all = (key: SupportPageKey) =>
-      [supportPages[key].intro ?? "", ...supportPages[key].sections.flatMap((s) => s.paragraphs)]
-        .join(" ")
-        .toLowerCase();
-    const privacy = all("privacy");
-    const terms = all("voorwaarden");
-
-    expect(privacy).toMatch(/zonder cookies/);
-    expect(privacy).toMatch(/geen account nodig/);
-    expect(privacy).toMatch(/geen gegevens verkocht/);
-    expect(privacy).toMatch(/reserveringsnummer/);
-    expect(terms).toMatch(/wachttijd/);
-    expect(terms).toMatch(/afstand/);
-    expect(terms).toMatch(/verantwoordelijk/);
+    expect(screen.queryByText(/rechtstreeks uit het beheersysteem/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\[Placeholder\]/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Concepttekst")).not.toBeInTheDocument();
   });
 });
 
