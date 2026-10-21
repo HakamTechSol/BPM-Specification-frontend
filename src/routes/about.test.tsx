@@ -46,6 +46,7 @@ const SUB_ROUTES = {
 } as const;
 
 beforeEach(() => {
+  getSettings.mockClear();
   getSettings.mockResolvedValue({
     id: 1,
     stroominstelling: ["6"],
@@ -167,6 +168,12 @@ describe("contact page", () => {
     render(<SupportPage pageKey="contact" />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Contact opnemen" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "van Heteren Recreatietechniek B.V." }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Onderhoud software: BlueDelta b.v." }),
+    ).toBeInTheDocument();
     expect(screen.getByText("van Heteren Recreatietechniek B.V.")).toBeInTheDocument();
     expect(screen.getByText("Onderhoud software: BlueDelta b.v.")).toBeInTheDocument();
 
@@ -320,32 +327,37 @@ describe("privacy page (client text, verbatim)", () => {
 });
 
 describe("bedrijf page", () => {
-  it("shows the campsite's own company data from the settings", async () => {
+  it("shows only the neutral line", () => {
     render(<SupportPage pageKey="bedrijf" />);
 
-    await waitFor(() => expect(screen.getByText("Camping De Bron")).toBeInTheDocument());
-    expect(screen.getByText("Bosweg 12")).toBeInTheDocument();
-    expect(screen.getByText("1234 AB Utrecht")).toBeInTheDocument();
-    expect(screen.getByText("030-1234567")).toBeInTheDocument();
-    expect(screen.getByText("info@debron.nl")).toBeInTheDocument();
-    expect(screen.getByText("NL123456789B01")).toBeInTheDocument();
+    expect(
+      screen.getByText("De bedrijfsgegevens worden binnenkort toegevoegd."),
+    ).toBeInTheDocument();
   });
 
-  it("hides fields the campsite has not filled in", async () => {
-    getSettings.mockResolvedValue({
-      id: 1,
-      stroominstelling: [],
-      vrijverbruikinstelling: [],
-      sessionDurationDays: 30,
-      eigenaar: { naam: "Camping De Bron", kvk: "12345678" },
-    });
+  it("does not show the campsite's own company data or the GEGEVENS card", () => {
     render(<SupportPage pageKey="bedrijf" />);
 
-    await waitFor(() => expect(screen.getByText("Camping De Bron")).toBeInTheDocument());
-    expect(screen.getByText("12345678")).toBeInTheDocument();
-    for (const label of ["Telefoon", "E-mailadres", "Website", "Adres"]) {
+    expect(screen.queryByText("Gegevens")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Camping De Bron/)).not.toBeInTheDocument();
+    for (const label of [
+      "Naam",
+      "Adres",
+      "Postcode en plaats",
+      "Telefoon",
+      "E-mailadres",
+      "Website",
+      "KvK-nummer",
+      "Btw-nummer",
+    ]) {
       expect(screen.queryByText(label)).not.toBeInTheDocument();
     }
+  });
+
+  it("does not fetch the campsite's settings", () => {
+    render(<SupportPage pageKey="bedrijf" />);
+
+    expect(getSettings).not.toHaveBeenCalled();
   });
 });
 
@@ -382,28 +394,6 @@ describe("privacy and terms pages", () => {
     expect(supportPages.bedrijf.pending).toBe("De bedrijfsgegevens worden binnenkort toegevoegd.");
     expect(supportPages.voorwaarden.sections).toEqual([]);
     expect(supportPages.bedrijf.sections).toEqual([]);
-  });
-});
-
-describe("bedrijf page without company data", () => {
-  it("shows the neutral line instead of our own text", async () => {
-    getSettings.mockResolvedValue({
-      id: 1,
-      stroominstelling: [],
-      vrijverbruikinstelling: [],
-      sessionDurationDays: 30,
-      eigenaar: {},
-    });
-    render(<SupportPage pageKey="bedrijf" />);
-
-    await waitFor(() =>
-      expect(
-        screen.getByText("De bedrijfsgegevens worden binnenkort toegevoegd."),
-      ).toBeInTheDocument(),
-    );
-    expect(screen.queryByText(/rechtstreeks uit het beheersysteem/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/\[Placeholder\]/)).not.toBeInTheDocument();
-    expect(screen.queryByText("Concepttekst")).not.toBeInTheDocument();
   });
 });
 

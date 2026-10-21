@@ -19,8 +19,8 @@
  *  4. `{dagen}` inside a paragraph is replaced by the configured session
  *     duration from the settings. Leave it in place unless you want a fixed
  *     number.
- *  5. Pages with `live` read their data from the API; their copy should not
- *     contain company details, those are filled in automatically.
+ *  5. The Bedrijf page never shows the campsite's own data; it only shows the
+ *     pending line until the client supplies the final text.
  */
 
 /** Identifies one support page; also its URL segment (/about/<key>). */
@@ -51,6 +51,11 @@ export interface ContentField {
 
 export interface ContentSection {
   heading: string;
+  /**
+   * Render the heading inside the card as a title, with a divider below it,
+   * instead of as a small label above the card.
+   */
+  headingInCard?: boolean;
   /** One paragraph per entry, rendered as its own paragraph. */
   paragraphs?: string[];
   /** Rendered as a real bullet list (<ul>). */
@@ -74,18 +79,14 @@ export interface ContentPage {
   sections: ContentSection[];
   /**
    * Fill the page with live data from /api/settings:
-   *  "eigenaar" → the campsite's own company details,
-   *  "session"  → the configured session duration, usable as {dagen}.
+   *  "session" → the configured session duration, usable as {dagen}.
    */
-  live?: "eigenaar" | "session";
+  live?: "session";
   /**
    * The page has no text of its own (yet): one neutral line is shown instead.
-   * Used while the client's final text is still pending. On a live page this is
-   * the fallback when the campsite has not filled in any details.
+   * Used while the client's final text is still pending.
    */
   pending?: string;
-  /** Shown when the live data could not be loaded. */
-  errorNote?: string;
 }
 
 export const about = {
@@ -101,22 +102,6 @@ export const about = {
   ] satisfies SupportLink[],
 };
 
-/**
- * The Bedrijf page shows these fields straight from /api/settings → eigenaar.
- * Empty fields are hidden, so nothing is invented: keep the list and the
- * labels in sync with what the settings form offers.
- */
-export const companyFields = [
-  { key: "naam", label: "Naam" },
-  { key: "adres", label: "Adres" },
-  { key: "postcodePlaats", label: "Postcode en plaats" },
-  { key: "telefoon", label: "Telefoon" },
-  { key: "email", label: "E-mailadres" },
-  { key: "website", label: "Website" },
-  { key: "kvk", label: "KvK-nummer" },
-  { key: "btwNummer", label: "Btw-nummer" },
-] as const;
-
 export const supportPages: Record<SupportPageKey, ContentPage> = {
   contact: {
     tabTitle: "Contact opnemen",
@@ -124,6 +109,7 @@ export const supportPages: Record<SupportPageKey, ContentPage> = {
     sections: [
       {
         heading: "van Heteren Recreatietechniek B.V.",
+        headingInCard: true,
         fields: [
           { label: "Adres", value: "Boortorenweg 15" },
           { label: "Postcode", value: "7554 RS" },
@@ -138,6 +124,7 @@ export const supportPages: Record<SupportPageKey, ContentPage> = {
       },
       {
         heading: "Onderhoud software: BlueDelta b.v.",
+        headingInCard: true,
         fields: [
           { label: "Contactpersoon", value: "J. Esvelt" },
           { label: "Telefoon", value: "+31 (0) 88 - 7733773", href: "tel:+31887733773" },
@@ -150,13 +137,9 @@ export const supportPages: Record<SupportPageKey, ContentPage> = {
   bedrijf: {
     tabTitle: "Bedrijf",
     heading: "Bedrijf",
-    // The company details come from /api/settings at runtime; nothing is
-    // hardcoded here, so the campsite's own data is the only thing on the page.
-    live: "eigenaar",
-    // Shown when the campsite has not filled in any details yet.
+    // The campsite's own company data must not be shown here. Only this neutral
+    // line is displayed until the client supplies the final text.
     pending: "De bedrijfsgegevens worden binnenkort toegevoegd.",
-    // TODO: replace with the final text from the client
-    errorNote: "De bedrijfsgegevens konden niet worden geladen.",
     sections: [],
   },
 

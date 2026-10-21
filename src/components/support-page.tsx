@@ -4,13 +4,8 @@ import { ChevronLeft } from "lucide-react";
 import { ManagerLayout } from "@/components/manager-layout";
 import { Card, SectionLabel } from "@/components/bp";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getSettings, type Eigenaar } from "@/lib/api";
-import {
-  companyFields,
-  supportPages,
-  type ContentLink,
-  type SupportPageKey,
-} from "@/content/about";
+import { getSettings } from "@/lib/api";
+import { supportPages, type ContentLink, type SupportPageKey } from "@/content/about";
 
 /** Resolves the `{dagen}` placeholder from the configured session duration. */
 function withDays(text: string, days: number | null): string {
@@ -56,27 +51,6 @@ function withText(text: string, links?: ContentLink[]): ReactNode {
   return nodes;
 }
 
-/** The rows of the live Bedrijf page, built from the settings and never invented. */
-function companyRows(eigenaar: Eigenaar): { label: string; value: string }[] {
-  const adres = [eigenaar.straat, eigenaar.nummer].filter(Boolean).join(" ");
-  const postcodePlaats = [eigenaar.postcode, eigenaar.plaats].filter(Boolean).join(" ");
-
-  const values: Record<string, string> = {
-    naam: eigenaar.naam ?? "",
-    adres,
-    postcodePlaats,
-    telefoon: eigenaar.telefoon ?? "",
-    email: eigenaar.email ?? "",
-    website: eigenaar.website ?? "",
-    kvk: eigenaar.kvk ?? "",
-    btwNummer: eigenaar["btw-nummer"] ?? "",
-  };
-
-  return companyFields
-    .map((field) => ({ label: field.label, value: values[field.key]?.trim() ?? "" }))
-    .filter((row) => row.value.length > 0);
-}
-
 /**
  * Renders one support page (/about/contact, /about/bedrijf, …). All copy comes
  * from `src/content/about.ts`; only the layout lives here, so the client can
@@ -87,30 +61,22 @@ export function SupportPage({ pageKey }: { pageKey: SupportPageKey }) {
   const page = supportPages[pageKey];
   const needsSettings = page.live !== undefined;
 
-  const [eigenaar, setEigenaar] = useState<Eigenaar | null>(null);
   const [days, setDays] = useState<number | null>(null);
-  const [liveState, setLiveState] = useState<"idle" | "loading" | "ready" | "error">("idle");
 
   useEffect(() => {
     if (!needsSettings) return;
     let cancelled = false;
-    setLiveState("loading");
     getSettings()
       .then((settings) => {
-        if (cancelled) return;
-        setEigenaar(settings.eigenaar ?? {});
-        setDays(settings.sessionDurationDays ?? null);
-        setLiveState("ready");
+        if (!cancelled) setDays(settings.sessionDurationDays ?? null);
       })
       .catch(() => {
-        if (!cancelled) setLiveState("error");
+        if (!cancelled) setDays(null);
       });
     return () => {
       cancelled = true;
     };
   }, [needsSettings]);
-
-  const rows = liveState === "ready" && eigenaar ? companyRows(eigenaar) : [];
 
   return (
     <ManagerLayout title={page.heading} right={<ThemeToggle />}>
@@ -136,45 +102,19 @@ export function SupportPage({ pageKey }: { pageKey: SupportPageKey }) {
           <Card className="px-3.5 py-3 sm:px-4 sm:py-3.5">
             <p className="text-[15px] leading-relaxed text-muted-foreground">{page.pending}</p>
           </Card>
-        ) : page.live === "eigenaar" ? (
-          <>
-            {(liveState !== "ready" || rows.length > 0) && (
-              <SectionLabel>{page.sections[0]?.heading ?? "Gegevens"}</SectionLabel>
-            )}
-            <Card className="overflow-hidden">
-              {liveState === "loading" && (
-                <div className="px-3.5 py-3 text-[14px] text-muted-foreground">Laden…</div>
-              )}
-              {liveState === "error" && (
-                <div className="px-3.5 py-3 text-[14px] text-destructive">{page.errorNote}</div>
-              )}
-              {liveState === "ready" && rows.length === 0 && page.pending && (
-                <div className="px-3.5 py-3 text-[15px] leading-relaxed text-muted-foreground">
-                  {page.pending}
-                </div>
-              )}
-              {rows.length > 0 && (
-                <div className="divide-y divide-border">
-                  {rows.map((row) => (
-                    <div
-                      key={row.label}
-                      className="flex items-baseline justify-between gap-3 px-3.5 py-2.5"
-                    >
-                      <span className="text-[13px] text-muted-foreground">{row.label}</span>
-                      <span className="min-w-0 break-words text-right text-[13.5px] font-medium">
-                        {row.value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </>
         ) : (
           page.sections.map((section) => (
-            <div key={section.heading}>
-              <SectionLabel>{section.heading}</SectionLabel>
+            <div key={section.heading} className={section.headingInCard ? "mt-4" : undefined}>
+              {!section.headingInCard && <SectionLabel>{section.heading}</SectionLabel>}
               <Card className="px-3.5 py-3 sm:px-4 sm:py-3.5">
+                {section.headingInCard && (
+                  <>
+                    <h2 className="break-words text-[15px] font-semibold leading-snug">
+                      {section.heading}
+                    </h2>
+                    <div className="my-2.5 h-px bg-border" />
+                  </>
+                )}
                 {section.paragraphs?.map((paragraph, index) => (
                   <p
                     key={index}
