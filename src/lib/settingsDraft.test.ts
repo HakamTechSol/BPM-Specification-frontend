@@ -3,11 +3,16 @@ import {
   changeLabels,
   changedFields,
   hasChanges,
+  hasManagerChanges,
+  hasOvercurrentChanges,
   normalizeSettings,
   normalizeValues,
+  overcurrentChangedFields,
+  overcurrentPatch,
   settingsEqual,
   settingsFromApi,
   settingsKey,
+  validateOvercurrent,
   type SettingsShape,
 } from "./settingsDraft";
 
@@ -26,6 +31,10 @@ const base: SettingsShape = {
   sessionDurationDays: 30,
   stroominstelling: ["6", "8", "10"],
   vrijverbruikinstelling: ["0", "2", "4"],
+  overcurrentSeconds: "90",
+  overcurrentAmps: "1.5",
+  overcurrentNotify: true,
+  overcurrentDisablePitch: true,
 };
 
 describe("normalizeValues", () => {
@@ -79,6 +88,17 @@ describe("settingsFromApi", () => {
     expect(result.naam).toBe("");
     expect(result.sessionDurationDays).toBe(30);
     expect(result.stroominstelling).toEqual([]);
+  });
+
+  it("maps the overcurrent group as editable text", () => {
+    const result = settingsFromApi(
+      {},
+      { available: true, seconds: 90, amps: 1.5, notify: true, disablePitch: false },
+    );
+    expect(result.overcurrentSeconds).toBe("90");
+    expect(result.overcurrentAmps).toBe("1.5");
+    expect(result.overcurrentNotify).toBe(true);
+    expect(result.overcurrentDisablePitch).toBe(false);
   });
 });
 
@@ -167,5 +187,127 @@ describe("revert semantics", () => {
     // After a successful save both sides become `next`.
     expect(hasChanges(next, next)).toBe(false);
     expect(next.stroominstelling).toEqual(["6", "10", "14"]);
+  });
+});
+
+// #OVERSCHRIJDINGDB
+describe("overcurrent group: dirty detection", () => {
+  it("is clean when untouched and separates the two save groups", () => {
+    const saved = { ...base };
+    const draft = { ...saved };
+    expect(hasOvercurrentChanges(saved, draft)).toBe(false);
+    expect(hasManagerChanges(saved, draft)).toBe(false);
+    expect(changeLabels(saved, draft)).toEqual([]);
+  });
+
+  it("detects each overcurrent field independently", () => {
+    const cases: Array<[Partial<SettingsShape>, string]> = [
+      [{ overcurrentSeconds: "120" }, "overcurrentSeconds"],
+      [{ overcurrentAmps: "2.5" }, "overcurrentAmps"],
+      [{ overcurrentNotify: false }, "overcurrentNotify"],
+      [{ overcurrentDisablePitch: false }, "overcurrentDisablePitch"],
+    ];
+
+    for (const [patch, key] of cases) {
+      const draft = { ...base, ...patch };
+      expect(overcurrentChangedFields(base, draft)).toEqual([key]);
+      expect(hasOvercurrentChanges(base, draft)).toBe(true);
+      expect(hasManagerChanges(base, draft)).toBe(false);
+    }
+  });
+
+  it("names the whole group once in the unsaved banner", () => {
+    const draft = {
+      ...base,
+      overcurrentSeconds: "120",
+      overcurrentAmps: "2.5",
+      overcurrentNotify: false,
+      overcurrentDisablePitch: false,
+    };
+    expect(changeLabels(base, draft)).toEqual(["stroom overschrijding"]);
+  });
+
+  it("keeps manager and overcurrent changes separate", () => {
+    const draft = {
+      ...base,
+      naam: "Anders",
+      stroominstelling: ["6", "8"],
+      overcurrentSeconds: "120",
+    };
+    expect(hasManagerChanges(base, draft)).toBe(true);
+    expect(hasOvercurrentChanges(base, draft)).toBe(true);
+    expect(changeLabels(base, draft)).toEqual([
+      "bedrijfsnaam",
+      "stroomwaarden",
+      "stroom overschrijding",
+    ]);
+  });
+
+  it("builds a partial patch with only the changed fields", () => {
+    expect(
+      overcurrentPatch(base, {
+        ...base,
+        overcurrentSeconds: "120",
+        overcurrentNotify: false,
+      }),
+    ).toEqual({ seconds: 120, notify: false });
+  });
+});
+
+describe("overcurrent group: cancel restore", () => {
+  it("restores all four values from the saved snapshot", () => {
+    const saved = { ...base };
+    const draft = {
+      ...saved,
+      overcurrentSeconds: "12345",
+      overcurrentAmps: "42.5",
+      overcurrentNotify: false,
+      overcurrentDisablePitch: false,
+    };
+
+    expect(hasOvercurrentChanges(saved, draft)).toBe(true);
+
+    // Annuleren assigns the saved object back onto the draft.
+    const reverted = saved;
+    expect(hasOvercurrentChanges(saved, reverted)).toBe(false);
+    expect(reverted.overcurrentSeconds).toBe("90");
+    expect(reverted.overcurrentAmps).toBe("1.5");
+    expect(reverted.overcurrentNotify).toBe(true);
+    expect(reverted.overcurrentDisablePitch).toBe(true);
+  });
+});
+
+describe("overcurrent group: validation", () => {
+  it("accepts the boundaries and up to two decimals", () => {
+    expect(
+      validateOvercurrent({
+        ...base,
+        overcurrentSeconds: "0",
+        overcurrentAmps: "0",
+      }),
+    ).toEqual({});
+    expect(
+      validateOvercurrent({
+        ...base,
+        overcurrentSeconds: "99999",
+        overcurrentAmps: "100",
+      }),
+    ).toEqual({});
+    expect(validateOvercurrent({ ...base, overcurrentAmps: "99.99" })).toEqual({});
+  });
+
+  it("rejects non-integer or out-of-range seconds", () => {
+    expect(validateOvercurrent({ ...base, overcurrentSeconds: "1.5" }).seconds).toBeTruthy();
+    expect(validateOvercurrent({ ...base, overcurrentSeconds: "-1" }).seconds).toBeTruthy();
+    expect(validateOvercurrent({ ...base, overcurrentSeconds: "100000" }).seconds).toBeTruthy();
+    expect(validateOvercurrent({ ...base, overcurrentSeconds: "" }).seconds).toBeTruthy();
+  });
+
+  it("rejects amps with more than two decimals or outside 0..100", () => {
+    expect(validateOvercurrent({ ...base, overcurrentAmps: "1.234" }).amps).toBeTruthy();
+    expect(validateOvercurrent({ ...base, overcurrentAmps: "-0.1" }).amps).toBeTruthy();
+    expect(validateOvercurrent({ ...base, overcurrentAmps: "100.01" }).amps).toBeTruthy();
+    expect(validateOvercurrent({ ...base, overcurrentAmps: "abc" }).amps).toBeTruthy();
+    expect(validateOvercurrent({ ...base, overcurrentAmps: "" }).amps).toBeTruthy();
   });
 });

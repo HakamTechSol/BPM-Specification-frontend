@@ -3,13 +3,17 @@ import { useState, useEffect, type ReactNode } from "react";
 import { ManagerLayout } from "@/components/manager-layout";
 import { Card, SectionLabel, SwitchRow } from "@/components/bp";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getSettings, updateSettings, type ManagerSettings, type Eigenaar } from "@/lib/api";
+import { getSettings, updateSettings, getOvercurrent, updateOvercurrent } from "@/lib/api";
 import {
   changeLabels,
   hasChanges as settingsHaveChanges,
+  hasManagerChanges,
+  hasOvercurrentChanges,
   normalizeSettings,
   normalizeValues,
+  overcurrentPatch,
   settingsFromApi,
+  validateOvercurrent,
   type SettingsShape,
 } from "@/lib/settingsDraft";
 import {
@@ -28,6 +32,9 @@ import {
   AlertCircle,
   Plus,
   X,
+  Clock,
+  Bell,
+  Power,
 } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
@@ -55,6 +62,10 @@ const EMPTY_SETTINGS: SettingsShape = {
   sessionDurationDays: 30,
   stroominstelling: [],
   vrijverbruikinstelling: [],
+  overcurrentSeconds: "0",
+  overcurrentAmps: "0",
+  overcurrentNotify: false,
+  overcurrentDisablePitch: false,
 };
 
 /**
@@ -107,6 +118,7 @@ function SettingsPage() {
   // just the changed fields, and Annuleren throws the draft away.
   const [saved, setSaved] = useState<SettingsShape>(EMPTY_SETTINGS);
   const [draft, setDraft] = useState<SettingsShape>(EMPTY_SETTINGS);
+  const [overcurrentAvailable, setOvercurrentAvailable] = useState(false);
 
   const isDirty = settingsHaveChanges(saved, draft);
   const pendingChanges = changeLabels(saved, draft);
@@ -121,16 +133,26 @@ function SettingsPage() {
 
   useEffect(() => {
     async function loadSettings() {
-      try {
-        const data = await getSettings();
-        const loaded = settingsFromApi(data);
+      const [settingsResult, overcurrentResult] = await Promise.allSettled([
+        getSettings(),
+        // #OVERSCHRIJDINGDB A failure/unavailable file must not block the page.
+        getOvercurrent(),
+      ]);
+
+      const overcurrent =
+        overcurrentResult.status === "fulfilled" && overcurrentResult.value.available
+          ? overcurrentResult.value
+          : null;
+      setOvercurrentAvailable(overcurrent !== null);
+
+      if (settingsResult.status === "fulfilled") {
+        const loaded = settingsFromApi(settingsResult.value, overcurrent);
         setSaved(loaded);
         setDraft(loaded);
-        setLoading(false);
-      } catch (err) {
-        console.error("Failed to load settings:", err);
-        setLoading(false);
+      } else {
+        console.error("Failed to load settings:", settingsResult.reason);
       }
+      setLoading(false);
     }
     loadSettings();
   }, []);
@@ -138,39 +160,111 @@ function SettingsPage() {
   const handleSave = async () => {
     // Normalize first, then persist the normalized shape as the new saved
     // state, so the comparison stays stable and Opslaan greys out again.
-    const next = normalizeSettings(draft);
+    let next = normalizeSettings(draft);
+    const overDirty = overcurrentAvailable && hasOvercurrentChanges(saved, draft);
+    const managerDirtyNow = hasManagerChanges(saved, draft);
+
+    if (overDirty) {
+      const errors = validateOvercurrent(next);
+      if (errors.seconds || errors.amps) {
+        setSaveStatus("error");
+        setErrorMessage(
+          [errors.seconds, errors.amps].filter(Boolean).join(". ") + " (stroom overschrijding)",
+        );
+        setDraft(next);
+        return;
+      }
+    }
+
+    if (!overDirty && !managerDirtyNow) return;
+
     setSaving(true);
     setSaveStatus("idle");
     setErrorMessage("");
-    try {
-      await updateSettings({
-        eigenaar: {
-          naam: next.naam || undefined,
-          straat: next.straat || undefined,
-          nummer: next.nummer || undefined,
-          postcode: next.postcode || undefined,
-          plaats: next.plaats || undefined,
-          land: next.land || undefined,
-          telefoon: next.telefoon || undefined,
-          email: next.email || undefined,
-          website: next.website || undefined,
-          kvk: next.kvk || undefined,
-          "btw-nummer": next.btwNummer || undefined,
-        },
-        sessionDurationDays: next.sessionDurationDays,
-        stroominstelling: next.stroominstelling,
-        vrijverbruikinstelling: next.vrijverbruikinstelling,
-      });
-      setSaved(next);
-      setDraft(next);
+
+    // Each group is committed independently. If one call fails, only that
+    // group stays dirty; the other group's saved baseline is updated.
+    let nextSaved = saved;
+    const failures: string[] = [];
+
+    if (overDirty) {
+      try {
+        // #OVERSCHRIJDINGDB Send only the fields that changed.
+        const applied = await updateOvercurrent(overcurrentPatch(saved, next));
+        next = {
+          ...next,
+          overcurrentSeconds: String(applied.seconds),
+          overcurrentAmps: String(applied.amps),
+          overcurrentNotify: applied.notify,
+          overcurrentDisablePitch: applied.disablePitch,
+        };
+        nextSaved = {
+          ...nextSaved,
+          overcurrentSeconds: next.overcurrentSeconds,
+          overcurrentAmps: next.overcurrentAmps,
+          overcurrentNotify: next.overcurrentNotify,
+          overcurrentDisablePitch: next.overcurrentDisablePitch,
+        };
+      } catch (err) {
+        failures.push(
+          `Stroom overschrijding: ${err instanceof Error ? err.message : "opslaan mislukt"}`,
+        );
+      }
+    }
+
+    if (managerDirtyNow) {
+      try {
+        await updateSettings({
+          eigenaar: {
+            naam: next.naam || undefined,
+            straat: next.straat || undefined,
+            nummer: next.nummer || undefined,
+            postcode: next.postcode || undefined,
+            plaats: next.plaats || undefined,
+            land: next.land || undefined,
+            telefoon: next.telefoon || undefined,
+            email: next.email || undefined,
+            website: next.website || undefined,
+            kvk: next.kvk || undefined,
+            "btw-nummer": next.btwNummer || undefined,
+          },
+          sessionDurationDays: next.sessionDurationDays,
+          stroominstelling: next.stroominstelling,
+          vrijverbruikinstelling: next.vrijverbruikinstelling,
+        });
+        nextSaved = {
+          ...nextSaved,
+          naam: next.naam,
+          straat: next.straat,
+          nummer: next.nummer,
+          postcode: next.postcode,
+          plaats: next.plaats,
+          land: next.land,
+          telefoon: next.telefoon,
+          email: next.email,
+          website: next.website,
+          kvk: next.kvk,
+          btwNummer: next.btwNummer,
+          sessionDurationDays: next.sessionDurationDays,
+          stroominstelling: next.stroominstelling,
+          vrijverbruikinstelling: next.vrijverbruikinstelling,
+        };
+      } catch (err) {
+        failures.push(err instanceof Error ? err.message : "Opslaan van instellingen mislukt");
+      }
+    }
+
+    setSaved(nextSaved);
+    setDraft(next);
+
+    if (failures.length > 0) {
+      setSaveStatus("error");
+      setErrorMessage(failures.join(" "));
+    } else {
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 3000);
-    } catch (err) {
-      setSaveStatus("error");
-      setErrorMessage(err instanceof Error ? err.message : "Failed to save settings");
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   return (
@@ -316,6 +410,70 @@ function SettingsPage() {
         </Card>
 
         <SectionLabel>Stroom overschrijding</SectionLabel>
+        <Card
+          className={
+            overcurrentAvailable ? "divide-y divide-border" : "divide-y divide-border opacity-60"
+          }
+        >
+          {!overcurrentAvailable && (
+            <div className="px-3 py-2.5 text-[12.5px] text-muted-foreground">
+              Niet beschikbaar op deze server
+            </div>
+          )}
+          <FieldRow icon={Clock} label="Actie ondernemen na" hint="Seconden">
+            <div className="flex shrink-0 items-center gap-1.5">
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={draft.overcurrentSeconds}
+                onChange={(e) =>
+                  updateDraft({ overcurrentSeconds: e.target.value.replace(/[^\d]/g, "") })
+                }
+                disabled={!overcurrentAvailable}
+                className={`${FIELD_INPUT} w-20 text-center font-semibold tabular-nums disabled:cursor-not-allowed`}
+                aria-label="Actie ondernemen na (seconden)"
+              />
+              <span className="text-[13px] font-medium text-muted-foreground">sec.</span>
+            </div>
+          </FieldRow>
+
+          <FieldRow icon={Zap} label="Actie ondernemen boven" hint="Ampère">
+            <div className="flex shrink-0 items-center gap-1.5">
+              <input
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]*[.,]?[0-9]*"
+                value={draft.overcurrentAmps}
+                onChange={(e) =>
+                  updateDraft({ overcurrentAmps: e.target.value.replace(/[^\d.]/g, "") })
+                }
+                disabled={!overcurrentAvailable}
+                className={`${FIELD_INPUT} w-20 text-center font-semibold tabular-nums disabled:cursor-not-allowed`}
+                aria-label="Actie ondernemen boven (ampère)"
+              />
+              <span className="text-[13px] font-medium text-muted-foreground">Amp.</span>
+            </div>
+          </FieldRow>
+
+          <SwitchRow
+            icon={Bell}
+            label="Melding weergeven"
+            checked={draft.overcurrentNotify}
+            onCheckedChange={(checked) => updateDraft({ overcurrentNotify: checked })}
+            disabled={!overcurrentAvailable}
+          />
+
+          <SwitchRow
+            icon={Power}
+            label="Staanplaats uitschakelen"
+            checked={draft.overcurrentDisablePitch}
+            onCheckedChange={(checked) => updateDraft({ overcurrentDisablePitch: checked })}
+            disabled={!overcurrentAvailable}
+          />
+        </Card>
+
+        <SectionLabel>Stroomniveaus</SectionLabel>
         <Card className="p-3">
           <div className="mb-2 text-[12.5px] text-muted-foreground">
             Beschikbare stroomopties systeembreed

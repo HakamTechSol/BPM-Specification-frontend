@@ -239,16 +239,28 @@ export function MetricCard({
   return (
     <div className="rounded-2xl border border-border bg-card p-2.5 sm:p-4 shadow-card">
       <div className="flex items-center justify-between text-muted-foreground">
-        <span className="text-[11px] sm:text-[12px] font-medium uppercase tracking-wider">{label}</span>
+        <span className="text-[11px] sm:text-[12px] font-medium uppercase tracking-wider">
+          {label}
+        </span>
         {Icon && <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
       </div>
       <div className="mt-1.5 sm:mt-2 flex items-baseline gap-0.5 sm:gap-1">
-        <span className={`text-[20px] sm:text-[26px] font-semibold tracking-tight tabular-nums ${toneCls}`}>
+        <span
+          className={`text-[20px] sm:text-[26px] font-semibold tracking-tight tabular-nums ${toneCls}`}
+        >
           {value}
         </span>
-        {unit && <span className="text-[11px] sm:text-[13px] font-medium text-muted-foreground">{unit}</span>}
+        {unit && (
+          <span className="text-[11px] sm:text-[13px] font-medium text-muted-foreground">
+            {unit}
+          </span>
+        )}
       </div>
-      {hint && <div className="mt-1 sm:mt-1.5 text-[11px] sm:text-[12px] text-muted-foreground leading-none">{hint}</div>}
+      {hint && (
+        <div className="mt-1 sm:mt-1.5 text-[11px] sm:text-[12px] text-muted-foreground leading-none">
+          {hint}
+        </div>
+      )}
     </div>
   );
 }
@@ -261,9 +273,17 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   );
 }
 
-export function SectionLabel({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function SectionLabel({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={`mt-4 mb-2 px-1 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground ${className}`}>
+    <div
+      className={`mt-4 mb-2 px-1 text-[12px] font-semibold uppercase tracking-wider text-muted-foreground ${className}`}
+    >
       {children}
     </div>
   );
@@ -538,6 +558,7 @@ export function SwitchRow({
         checked={checked}
         onCheckedChange={onCheckedChange}
         disabled={disabled}
+        aria-label={label}
         className="h-12 w-[60px] [&>span]:h-[34px] [&>span]:w-[34px] [&>span]:data-[state=checked]:translate-x-[24px]"
       />
     </div>

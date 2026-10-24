@@ -4,10 +4,14 @@ import userEvent from "@testing-library/user-event";
 
 const getSettings = vi.fn();
 const updateSettings = vi.fn();
+const getOvercurrent = vi.fn();
+const updateOvercurrent = vi.fn();
 
 vi.mock("@/lib/api", () => ({
   getSettings: () => getSettings(),
   updateSettings: (payload: unknown) => updateSettings(payload),
+  getOvercurrent: () => getOvercurrent(),
+  updateOvercurrent: (payload: unknown) => updateOvercurrent(payload),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -77,7 +81,28 @@ beforeEach(() => {
     eigenaar: { naam: "BluePlug", "btw-nummer": "NL123456789B01" },
   });
   updateSettings.mockResolvedValue({ success: true });
+  getOvercurrent.mockResolvedValue({
+    available: true,
+    seconds: 90,
+    amps: 1.5,
+    notify: true,
+    disablePitch: true,
+  });
+  updateOvercurrent.mockImplementation(async (payload: Record<string, unknown>) => ({
+    success: true,
+    available: true,
+    seconds: 90,
+    amps: 1.5,
+    notify: true,
+    disablePitch: true,
+    ...payload,
+  }));
 });
+
+const secondsInput = () => screen.getByRole("textbox", { name: "Actie ondernemen na (seconden)" });
+const ampsInput = () => screen.getByRole("textbox", { name: "Actie ondernemen boven (ampère)" });
+const notifySwitch = () => screen.getByRole("switch", { name: "Melding weergeven" });
+const disablePitchSwitch = () => screen.getByRole("switch", { name: "Staanplaats uitschakelen" });
 
 async function ready() {
   await waitFor(() => expect(stroomInput(1)).toBeInTheDocument());
@@ -370,5 +395,160 @@ describe("Instellingen — eigenaar fields share the same draft", () => {
 
     expect(screen.getByRole("textbox", { name: "Bedrijfsnaam" })).toHaveValue("BluePlug");
     expect(opslaan()).toBeDisabled();
+  });
+});
+
+// #OVERSCHRIJDINGDB
+describe("Instellingen — stroom overschrijding", () => {
+  it("renders the overcurrent fields above the current-level section", async () => {
+    mount();
+    await ready();
+
+    expect(secondsInput()).toHaveValue("90");
+    expect(ampsInput()).toHaveValue("1.5");
+    expect(notifySwitch()).toBeChecked();
+    expect(disablePitchSwitch()).toBeChecked();
+    expect(screen.getByText("Stroomniveaus")).toBeInTheDocument();
+
+    const overcurrentHeading = screen.getByText("Stroom overschrijding");
+    const currentHeading = screen.getByText("Stroomniveaus");
+    expect(
+      overcurrentHeading.compareDocumentPosition(currentHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("shows the section disabled without blocking the rest of the page", async () => {
+    const user = userEvent.setup();
+    getOvercurrent.mockResolvedValueOnce({
+      available: false,
+      seconds: 0,
+      amps: 0,
+      notify: false,
+      disablePitch: false,
+    });
+    mount();
+    await ready();
+
+    expect(screen.getByText("Niet beschikbaar op deze server")).toBeInTheDocument();
+    expect(secondsInput()).toBeDisabled();
+    expect(ampsInput()).toBeDisabled();
+    expect(notifySwitch()).toBeDisabled();
+    expect(disablePitchSwitch()).toBeDisabled();
+
+    // The existing groups still work.
+    await user.clear(newStroom());
+    await user.type(newStroom(), "14");
+    await user.click(addStroom());
+    await user.click(opslaan());
+
+    await waitFor(() => expect(updateSettings).toHaveBeenCalledTimes(1));
+    expect(updateOvercurrent).not.toHaveBeenCalled();
+  });
+
+  it("saves only the changed overcurrent field and greys out again", async () => {
+    const user = userEvent.setup();
+    mount();
+    await ready();
+
+    await user.clear(secondsInput());
+    await user.type(secondsInput(), "120");
+
+    expect(opslaan()).toBeEnabled();
+    expect(screen.getByText(/Niet opgeslagen/i)).toHaveTextContent("stroom overschrijding");
+
+    await user.click(opslaan());
+
+    await waitFor(() => expect(updateOvercurrent).toHaveBeenCalledTimes(1));
+    expect(updateOvercurrent).toHaveBeenCalledWith({ seconds: 120 });
+    expect(updateSettings).not.toHaveBeenCalled();
+    await waitFor(() => expect(opslaan()).toBeDisabled());
+    expect(secondsInput()).toHaveValue("120");
+  });
+
+  it("saves a checkbox as a boolean", async () => {
+    const user = userEvent.setup();
+    mount();
+    await ready();
+
+    await user.click(notifySwitch());
+    await user.click(opslaan());
+
+    await waitFor(() => expect(updateOvercurrent).toHaveBeenCalledTimes(1));
+    expect(updateOvercurrent).toHaveBeenCalledWith({ notify: false });
+    expect(updateSettings).not.toHaveBeenCalled();
+  });
+
+  it("keeps only the failed group dirty when the other call succeeds", async () => {
+    const user = userEvent.setup();
+    updateOvercurrent.mockRejectedValueOnce(new Error("configuratie.php busy"));
+    mount();
+    await ready();
+
+    const naam = screen.getByRole("textbox", { name: "Bedrijfsnaam" });
+    await user.clear(naam);
+    await user.type(naam, "Nieuw");
+    await user.clear(secondsInput());
+    await user.type(secondsInput(), "120");
+    await user.click(opslaan());
+
+    await waitFor(() => expect(screen.getByText(/configuratie\.php busy/i)).toBeInTheDocument());
+    expect(updateOvercurrent).toHaveBeenCalledTimes(1);
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+
+    const banner = screen.getByText(/Niet opgeslagen/i);
+    expect(banner).toHaveTextContent("stroom overschrijding");
+    expect(banner).not.toHaveTextContent("bedrijfsnaam");
+    expect(opslaan()).toBeEnabled();
+  });
+
+  it("Cancel restores the saved overcurrent values", async () => {
+    const user = userEvent.setup();
+    mount();
+    await ready();
+
+    await user.clear(secondsInput());
+    await user.type(secondsInput(), "120");
+    await user.clear(ampsInput());
+    await user.type(ampsInput(), "4.25");
+    await user.click(notifySwitch());
+
+    await user.click(annuleren());
+
+    expect(secondsInput()).toHaveValue("90");
+    expect(ampsInput()).toHaveValue("1.5");
+    expect(notifySwitch()).toBeChecked();
+    expect(opslaan()).toBeDisabled();
+  });
+
+  it("rejects >2-decimal amps before calling the API", async () => {
+    const user = userEvent.setup();
+    mount();
+    await ready();
+
+    await user.clear(ampsInput());
+    await user.type(ampsInput(), "1.234");
+    await user.click(opslaan());
+
+    await waitFor(() => expect(screen.getByText(/maximaal 2 decimalen/i)).toBeInTheDocument());
+    expect(updateOvercurrent).not.toHaveBeenCalled();
+    expect(updateSettings).not.toHaveBeenCalled();
+    expect(opslaan()).toBeEnabled();
+  });
+
+  it("keeps working when the overcurrent GET fails", async () => {
+    const user = userEvent.setup();
+    getOvercurrent.mockRejectedValueOnce(new Error("offline"));
+    mount();
+    await ready();
+
+    expect(screen.getByText("Niet beschikbaar op deze server")).toBeInTheDocument();
+
+    await user.clear(newStroom());
+    await user.type(newStroom(), "14");
+    await user.click(addStroom());
+    await user.click(opslaan());
+
+    await waitFor(() => expect(updateSettings).toHaveBeenCalledTimes(1));
+    expect(updateOvercurrent).not.toHaveBeenCalled();
   });
 });

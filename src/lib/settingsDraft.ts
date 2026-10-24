@@ -20,6 +20,28 @@ export interface SettingsShape {
   sessionDurationDays: number;
   stroominstelling: string[];
   vrijverbruikinstelling: string[];
+  /** #OVERSCHRIJDINGDB The overcurrent group is edited as text in the form. */
+  overcurrentSeconds: string;
+  overcurrentAmps: string;
+  overcurrentNotify: boolean;
+  overcurrentDisablePitch: boolean;
+}
+
+/** The overcurrent API payload, matching GET /api/settings/overcurrent. */
+export interface OvercurrentApiValues {
+  available: boolean;
+  seconds: number;
+  amps: number;
+  notify: boolean;
+  disablePitch: boolean;
+}
+
+/** Only the fields this group sends to PUT /api/settings/overcurrent. */
+export interface OvercurrentPatch {
+  seconds?: number;
+  amps?: number;
+  notify?: boolean;
+  disablePitch?: boolean;
 }
 
 export const EIGENAAR_KEYS = [
@@ -44,7 +66,15 @@ export type ScalarKey = (typeof SCALAR_KEYS)[number];
 export const LIST_KEYS = ["stroominstelling", "vrijverbruikinstelling"] as const;
 export type ListKey = (typeof LIST_KEYS)[number];
 
-export type SettingsKey = EigenaarKey | ScalarKey | ListKey;
+export const OVERCURRENT_KEYS = [
+  "overcurrentSeconds",
+  "overcurrentAmps",
+  "overcurrentNotify",
+  "overcurrentDisablePitch",
+] as const;
+export type OvercurrentKey = (typeof OVERCURRENT_KEYS)[number];
+
+export type SettingsKey = EigenaarKey | ScalarKey | ListKey | OvercurrentKey;
 
 export const CHANGE_LABELS: Record<SettingsKey, string> = {
   naam: "bedrijfsnaam",
@@ -61,6 +91,11 @@ export const CHANGE_LABELS: Record<SettingsKey, string> = {
   sessionDurationDays: "sessieduur",
   stroominstelling: "stroomwaarden",
   vrijverbruikinstelling: "verbruikswaarden",
+  // #OVERSCHRIJDINGDB One group name, de-duplicated by changeLabels().
+  overcurrentSeconds: "stroom overschrijding",
+  overcurrentAmps: "stroom overschrijding",
+  overcurrentNotify: "stroom overschrijding",
+  overcurrentDisablePitch: "stroom overschrijding",
 };
 
 /** The eigenaar payload as the API sends it, with its hyphenated BTW key. */
@@ -82,12 +117,15 @@ export interface EigenaarSource {
  * Maps the API payload onto the form shape. `btw-nummer` is hyphenated in the
  * API but camelCase on the form, which is why this cannot be a plain spread.
  */
-export function settingsFromApi(data: {
-  eigenaar?: EigenaarSource | null;
-  sessionDurationDays?: number;
-  stroominstelling?: string[];
-  vrijverbruikinstelling?: string[];
-}): SettingsShape {
+export function settingsFromApi(
+  data: {
+    eigenaar?: EigenaarSource | null;
+    sessionDurationDays?: number;
+    stroominstelling?: string[];
+    vrijverbruikinstelling?: string[];
+  },
+  overcurrent?: OvercurrentApiValues | null,
+): SettingsShape {
   const e = data.eigenaar || {};
   const str = (v: string | undefined) => v || "";
   return {
@@ -105,6 +143,12 @@ export function settingsFromApi(data: {
     sessionDurationDays: data.sessionDurationDays ?? 30,
     stroominstelling: data.stroominstelling || [],
     vrijverbruikinstelling: data.vrijverbruikinstelling || [],
+    // #OVERSCHRIJDINGDB The form keeps the numeric fields as text so typing
+    // decimals is not interrupted by a number-input re-render.
+    overcurrentSeconds: overcurrent ? String(overcurrent.seconds) : "0",
+    overcurrentAmps: overcurrent ? String(overcurrent.amps) : "0",
+    overcurrentNotify: overcurrent?.notify ?? false,
+    overcurrentDisablePitch: overcurrent?.disablePitch ?? false,
   };
 }
 
@@ -169,13 +213,98 @@ export function changedFields(saved: SettingsShape, draft: SettingsShape): Setti
   for (const key of LIST_KEYS) {
     if (!sameList(saved[key], draft[key])) keys.push(key);
   }
+  // #OVERSCHRIJDINGDB
+  for (const key of OVERCURRENT_KEYS) {
+    if (saved[key] !== draft[key]) keys.push(key);
+  }
   return keys;
+}
+
+export function isOvercurrentKey(key: SettingsKey): key is OvercurrentKey {
+  return (OVERCURRENT_KEYS as readonly string[]).includes(key);
+}
+
+/** Changes outside the overcurrent group: sent to PUT /api/settings. */
+export function managerChangedFields(saved: SettingsShape, draft: SettingsShape): SettingsKey[] {
+  return changedFields(saved, draft).filter((key) => !isOvercurrentKey(key));
+}
+
+/** Changes inside the overcurrent group: sent to PUT /api/settings/overcurrent. */
+export function overcurrentChangedFields(
+  saved: SettingsShape,
+  draft: SettingsShape,
+): OvercurrentKey[] {
+  return changedFields(saved, draft).filter(isOvercurrentKey);
 }
 
 export function hasChanges(saved: SettingsShape, draft: SettingsShape): boolean {
   return changedFields(saved, draft).length > 0;
 }
 
+export function hasManagerChanges(saved: SettingsShape, draft: SettingsShape): boolean {
+  return managerChangedFields(saved, draft).length > 0;
+}
+
+/** #OVERSCHRIJDINGDB */
+export function hasOvercurrentChanges(saved: SettingsShape, draft: SettingsShape): boolean {
+  return overcurrentChangedFields(saved, draft).length > 0;
+}
+
 export function changeLabels(saved: SettingsShape, draft: SettingsShape): string[] {
-  return changedFields(saved, draft).map((key) => CHANGE_LABELS[key]);
+  // De-duplicate because all four overcurrent keys share one group label.
+  return [...new Set(changedFields(saved, draft).map((key) => CHANGE_LABELS[key]))];
+}
+
+export interface OvercurrentValidationErrors {
+  seconds?: string;
+  amps?: string;
+}
+
+/**
+ * Client-side mirror of the backend overcurrent validation. Errors are shown
+ * before any PUT; the backend still validates independently.
+ * #OVERSCHRIJDINGDB
+ */
+export function validateOvercurrent(settings: SettingsShape): OvercurrentValidationErrors {
+  const errors: OvercurrentValidationErrors = {};
+
+  const secondsText = settings.overcurrentSeconds.trim();
+  if (!/^\d+$/.test(secondsText)) {
+    errors.seconds = "Seconden moet een geheel getal zijn";
+  } else {
+    const seconds = Number(secondsText);
+    if (seconds < 0 || seconds > 99999) {
+      errors.seconds = "Seconden moet tussen 0 en 99999 liggen";
+    }
+  }
+
+  const ampsText = settings.overcurrentAmps.trim();
+  if (!/^\d+(\.\d{1,2})?$/.test(ampsText)) {
+    errors.amps = "Ampère moet een getal met maximaal 2 decimalen zijn";
+  } else {
+    const amps = Number(ampsText);
+    if (!Number.isFinite(amps) || amps < 0 || amps > 100) {
+      errors.amps = "Ampère moet tussen 0 en 100 liggen";
+    }
+  }
+
+  return errors;
+}
+
+/** Only the overcurrent fields that differ, with numeric values. */
+export function overcurrentPatch(saved: SettingsShape, draft: SettingsShape): OvercurrentPatch {
+  const patch: OvercurrentPatch = {};
+  if (saved.overcurrentSeconds !== draft.overcurrentSeconds) {
+    patch.seconds = Number(draft.overcurrentSeconds);
+  }
+  if (saved.overcurrentAmps !== draft.overcurrentAmps) {
+    patch.amps = Number(draft.overcurrentAmps);
+  }
+  if (saved.overcurrentNotify !== draft.overcurrentNotify) {
+    patch.notify = draft.overcurrentNotify;
+  }
+  if (saved.overcurrentDisablePitch !== draft.overcurrentDisablePitch) {
+    patch.disablePitch = draft.overcurrentDisablePitch;
+  }
+  return patch;
 }

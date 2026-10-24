@@ -215,6 +215,40 @@ export function updateSettings(payload: {
   );
 }
 
+// ── #OVERSCHRIJDINGDB: overcurrent settings ──────────
+
+export interface OvercurrentSettings {
+  available: boolean;
+  seconds: number;
+  amps: number;
+  notify: boolean;
+  disablePitch: boolean;
+}
+
+export interface OvercurrentPatch {
+  seconds?: number;
+  amps?: number;
+  notify?: boolean;
+  disablePitch?: boolean;
+}
+
+export function getOvercurrent(): Promise<OvercurrentSettings> {
+  return request("/api/settings/overcurrent", {}, true);
+}
+
+export function updateOvercurrent(
+  payload: OvercurrentPatch,
+): Promise<{ success: boolean } & OvercurrentSettings> {
+  return request(
+    "/api/settings/overcurrent",
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+    true,
+  );
+}
+
 // ── Failures ─────────────────────────────────────────
 
 export interface FailureRecord {
